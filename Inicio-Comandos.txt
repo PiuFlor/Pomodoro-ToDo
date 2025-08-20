@@ -1,9 +1,0 @@
-npx create-next-app@latest my-pomodoro-app --typescript --tailwind --eslint --app --src-dir
-
-cd my-pomodoro-app
-
-npm install lucide-react class-variance-authority clsx tailwind-merge
-
-npx shadcn@latest init
-
-npx shadcn@latest add button (y todos los componentes)

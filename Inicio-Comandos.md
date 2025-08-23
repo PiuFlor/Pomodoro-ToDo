@@ -39,3 +39,13 @@ npx shadcn@latest add label
 npx shadcn@latest add form
 npx shadcn@latest add dialog
 ... y cualquier otro componente necesario
+
+
+### 6. Ejecutar con Electron
+# Terminal 1: Inicia Next.js
+```bash
+npm run dev
+
+# Terminal 2: Inicia Electron
+```bash
+npx electron main.js

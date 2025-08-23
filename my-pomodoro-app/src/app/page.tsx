@@ -1,12 +1,10 @@
 "use client"
-
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { Separator } from "@/components/ui/separator"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Play, Pause, RotateCcw, Settings, Plus, Trash2, Check, Clock, Calendar, AlertTriangle, Target, Edit, BarChart3, TrendingUp, ArrowUp, ArrowDown, Minus } from 'lucide-react'
@@ -71,13 +69,11 @@ export default function PomodoroTodoApp() {
     longBreak: 15,
     longBreakInterval: 4
   })
-  
   const [timeLeft, setTimeLeft] = useState(settings.workTime * 60)
   const [isRunning, setIsRunning] = useState(false)
   const [mode, setMode] = useState<TimerMode>('work')
   const [completedPomodoros, setCompletedPomodoros] = useState(0)
   const [isSettingsOpen, setIsSettingsOpen] = useState(false)
-
   const intervalRef = useRef<NodeJS.Timeout | null>(null)
 
   // Cargar datos del localStorage al iniciar
@@ -87,7 +83,7 @@ export default function PomodoroTodoApp() {
     const savedSettings = localStorage.getItem('pomodoro-settings')
 
     if (savedTasks) {
-      const parsedTasks = JSON.parse(savedTasks).map((task: any) => ({
+      const parsedTasks = JSON.parse(savedTasks).map((task: { createdAt: string; updatedAt: string }) => ({
         ...task,
         createdAt: new Date(task.createdAt),
         updatedAt: new Date(task.updatedAt)
@@ -96,7 +92,7 @@ export default function PomodoroTodoApp() {
     }
 
     if (savedHistory) {
-      const parsedHistory = JSON.parse(savedHistory).map((record: any) => ({
+      const parsedHistory = JSON.parse(savedHistory).map((record: { startTime: string; endTime: string }) => ({
         ...record,
         startTime: new Date(record.startTime),
         endTime: new Date(record.endTime)
@@ -122,6 +118,53 @@ export default function PomodoroTodoApp() {
     localStorage.setItem('pomodoro-settings', JSON.stringify(settings))
   }, [settings])
 
+  // Función para completar el temporizador
+  const handleTimerComplete = useCallback(() => {
+    setIsRunning(false)
+    const endTime = new Date()
+
+    // Crear registro del pomodoro
+    const activeTask = tasks.find(task => task.id === activeTaskId)
+    const record: PomodoroRecord = {
+      id: Date.now().toString(),
+      taskId: activeTaskId,
+      taskTitle: activeTask?.title || 'Sin tarea asignada',
+      startTime: currentSessionStart || new Date(endTime.getTime() - (mode === 'work' ? settings.workTime : mode === 'shortBreak' ? settings.shortBreak : settings.longBreak) * 60 * 1000),
+      endTime,
+      mode,
+      completed: true
+    }
+
+    setPomodoroHistory(prev => [...prev, record])
+
+    if (mode === 'work') {
+      const newCompletedPomodoros = completedPomodoros + 1
+      setCompletedPomodoros(newCompletedPomodoros)
+
+      // Actualizar pomodoros de la tarea activa
+      if (activeTaskId) {
+        setTasks(tasks.map(task =>
+          task.id === activeTaskId
+            ? { ...task, pomodorosCompleted: task.pomodorosCompleted + 1, updatedAt: new Date() }
+            : task
+        ))
+      }
+
+      // Determinar el siguiente modo
+      const nextMode = newCompletedPomodoros % settings.longBreakInterval === 0
+        ? 'longBreak'
+        : 'shortBreak'
+
+      setMode(nextMode)
+      setTimeLeft((nextMode === 'longBreak' ? settings.longBreak : settings.shortBreak) * 60)
+    } else {
+      setMode('work')
+      setTimeLeft(settings.workTime * 60)
+    }
+
+    setCurrentSessionStart(null)
+  }, [activeTaskId, tasks, currentSessionStart, mode, settings, completedPomodoros])
+
   // Efecto para el temporizador
   useEffect(() => {
     if (isRunning && timeLeft > 0) {
@@ -141,14 +184,14 @@ export default function PomodoroTodoApp() {
         clearInterval(intervalRef.current)
       }
     }
-  }, [isRunning, timeLeft])
+  }, [isRunning, timeLeft, handleTimerComplete])
 
   // Actualizar tiempo cuando cambian las configuraciones
   useEffect(() => {
     if (!isRunning) {
-      const newTime = mode === 'work' ? settings.workTime : 
-                     mode === 'shortBreak' ? settings.shortBreak : 
-                     settings.longBreak
+      const newTime = mode === 'work' ? settings.workTime :
+        mode === 'shortBreak' ? settings.shortBreak :
+          settings.longBreak
       setTimeLeft(newTime * 60)
     }
   }, [settings, mode, isRunning])
@@ -175,8 +218,8 @@ export default function PomodoroTodoApp() {
 
   const updateTask = () => {
     if (editingTask && editingTask.title.trim()) {
-      setTasks(tasks.map(task => 
-        task.id === editingTask.id 
+      setTasks(tasks.map(task =>
+        task.id === editingTask.id
           ? { ...editingTask, updatedAt: new Date() }
           : task
       ))
@@ -186,7 +229,7 @@ export default function PomodoroTodoApp() {
   }
 
   const toggleTask = (id: string) => {
-    setTasks(tasks.map(task => 
+    setTasks(tasks.map(task =>
       task.id === id ? { ...task, completed: !task.completed, updatedAt: new Date() } : task
     ))
   }
@@ -218,64 +261,19 @@ export default function PomodoroTodoApp() {
   const resetTimer = () => {
     setIsRunning(false)
     setCurrentSessionStart(null)
-    const newTime = mode === 'work' ? settings.workTime : 
-                   mode === 'shortBreak' ? settings.shortBreak : 
-                   settings.longBreak
+    const newTime = mode === 'work' ? settings.workTime :
+      mode === 'shortBreak' ? settings.shortBreak :
+        settings.longBreak
     setTimeLeft(newTime * 60)
-  }
-
-  const handleTimerComplete = () => {
-    setIsRunning(false)
-    const endTime = new Date()
-    
-    // Crear registro del pomodoro
-    const activeTask = tasks.find(task => task.id === activeTaskId)
-    const record: PomodoroRecord = {
-      id: Date.now().toString(),
-      taskId: activeTaskId,
-      taskTitle: activeTask?.title || 'Sin tarea asignada',
-      startTime: currentSessionStart || new Date(endTime.getTime() - (mode === 'work' ? settings.workTime : mode === 'shortBreak' ? settings.shortBreak : settings.longBreak) * 60 * 1000),
-      endTime,
-      mode,
-      completed: true
-    }
-    
-    setPomodoroHistory(prev => [...prev, record])
-    
-    if (mode === 'work') {
-      const newCompletedPomodoros = completedPomodoros + 1
-      setCompletedPomodoros(newCompletedPomodoros)
-      
-      // Actualizar pomodoros de la tarea activa
-      if (activeTaskId) {
-        setTasks(tasks.map(task => 
-          task.id === activeTaskId 
-            ? { ...task, pomodorosCompleted: task.pomodorosCompleted + 1, updatedAt: new Date() }
-            : task
-        ))
-      }
-      
-      // Determinar el siguiente modo
-      const nextMode = newCompletedPomodoros % settings.longBreakInterval === 0 
-        ? 'longBreak' 
-        : 'shortBreak'
-      setMode(nextMode)
-      setTimeLeft((nextMode === 'longBreak' ? settings.longBreak : settings.shortBreak) * 60)
-    } else {
-      setMode('work')
-      setTimeLeft(settings.workTime * 60)
-    }
-    
-    setCurrentSessionStart(null)
   }
 
   const switchMode = (newMode: TimerMode) => {
     setMode(newMode)
     setIsRunning(false)
     setCurrentSessionStart(null)
-    const newTime = newMode === 'work' ? settings.workTime : 
-                   newMode === 'shortBreak' ? settings.shortBreak : 
-                   settings.longBreak
+    const newTime = newMode === 'work' ? settings.workTime :
+      newMode === 'shortBreak' ? settings.shortBreak :
+        settings.longBreak
     setTimeLeft(newTime * 60)
   }
 
@@ -294,12 +292,10 @@ export default function PomodoroTodoApp() {
   // Obtener estado de fecha límite
   const getDueDateStatus = (dueDate: string | null) => {
     if (!dueDate) return null
-    
     const today = new Date()
     const due = new Date(dueDate)
     const diffTime = due.getTime() - today.getTime()
     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
-    
     if (diffDays < 0) return 'overdue'
     if (diffDays === 0) return 'today'
     if (diffDays <= 3) return 'soon'
@@ -310,40 +306,35 @@ export default function PomodoroTodoApp() {
   const getStatsForPeriod = (days: number) => {
     const now = new Date()
     const startDate = new Date(now.getTime() - days * 24 * 60 * 60 * 1000)
-    
-    return pomodoroHistory.filter(record => 
-      record.mode === 'work' && 
-      record.completed && 
+    return pomodoroHistory.filter(record =>
+      record.mode === 'work' &&
+      record.completed &&
       record.endTime >= startDate
     )
   }
 
   const getHourlyStats = () => {
     const hourlyData = Array.from({ length: 24 }, (_, i) => ({ hour: i, count: 0 }))
-    
     pomodoroHistory
       .filter(record => record.mode === 'work' && record.completed)
       .forEach(record => {
         const hour = record.endTime.getHours()
         hourlyData[hour].count++
       })
-    
     return hourlyData
   }
 
   const getDailyStats = () => {
-    const dailyData = Array.from({ length: 7 }, (_, i) => ({ 
-      day: ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'][i], 
-      count: 0 
+    const dailyData = Array.from({ length: 7 }, (_, i) => ({
+      day: ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'][i],
+      count: 0
     }))
-    
     pomodoroHistory
       .filter(record => record.mode === 'work' && record.completed)
       .forEach(record => {
         const day = record.endTime.getDay()
         dailyData[day].count++
       })
-    
     return dailyData
   }
 
@@ -353,7 +344,6 @@ export default function PomodoroTodoApp() {
     return priorityOrder[b.priority] - priorityOrder[a.priority]
   })
   const completedTasks = tasks.filter(task => task.completed)
-
   const todayStats = getStatsForPeriod(1)
   const weekStats = getStatsForPeriod(7)
   const monthStats = getStatsForPeriod(30)
@@ -373,7 +363,6 @@ export default function PomodoroTodoApp() {
           </div>
         </div>
       </div>
-
       <div className="max-w-7xl mx-auto px-6 py-8">
         <Tabs defaultValue="pomodoro" className="space-y-8">
           <TabsList className="grid w-full grid-cols-2 lg:w-[400px] mx-auto">
@@ -386,7 +375,6 @@ export default function PomodoroTodoApp() {
               Estadísticas
             </TabsTrigger>
           </TabsList>
-
           <TabsContent value="pomodoro">
             <div className="grid lg:grid-cols-5 gap-8">
               {/* Panel del Pomodoro */}
@@ -444,7 +432,6 @@ export default function PomodoroTodoApp() {
                           }}></div>
                         </div>
                       </div>
-                      
                       {/* Botones de modo */}
                       <div className="flex justify-center gap-2 mb-8">
                         <Button
@@ -453,8 +440,8 @@ export default function PomodoroTodoApp() {
                           onClick={() => switchMode('work')}
                           disabled={isRunning}
                           className={`rounded-full px-4 py-2 font-medium transition-all ${
-                            mode === 'work' 
-                              ? 'bg-purple-600 hover:bg-purple-700 shadow-lg' 
+                            mode === 'work'
+                              ? 'bg-purple-600 hover:bg-purple-700 shadow-lg'
                               : 'hover:bg-purple-50 border-purple-200'
                           }`}
                         >
@@ -466,8 +453,8 @@ export default function PomodoroTodoApp() {
                           onClick={() => switchMode('shortBreak')}
                           disabled={isRunning}
                           className={`rounded-full px-4 py-2 font-medium transition-all ${
-                            mode === 'shortBreak' 
-                              ? 'bg-green-600 hover:bg-green-700 shadow-lg' 
+                            mode === 'shortBreak'
+                              ? 'bg-green-600 hover:bg-green-700 shadow-lg'
                               : 'hover:bg-green-50 border-green-200'
                           }`}
                         >
@@ -479,23 +466,22 @@ export default function PomodoroTodoApp() {
                           onClick={() => switchMode('longBreak')}
                           disabled={isRunning}
                           className={`rounded-full px-4 py-2 font-medium transition-all ${
-                            mode === 'longBreak' 
-                              ? 'bg-blue-600 hover:bg-blue-700 shadow-lg' 
+                            mode === 'longBreak'
+                              ? 'bg-blue-600 hover:bg-blue-700 shadow-lg'
                               : 'hover:bg-blue-50 border-blue-200'
                           }`}
                         >
                           Descanso Largo
                         </Button>
                       </div>
-
                       {/* Controles del temporizador */}
                       <div className="flex justify-center gap-4">
                         <Button
                           onClick={toggleTimer}
                           size="lg"
                           className={`rounded-full px-8 py-4 font-bold text-lg shadow-xl transition-all transform hover:scale-105 ${
-                            isRunning 
-                              ? 'bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700' 
+                            isRunning
+                              ? 'bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700'
                               : 'bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700'
                           }`}
                         >
@@ -511,9 +497,9 @@ export default function PomodoroTodoApp() {
                             </>
                           )}
                         </Button>
-                        <Button 
-                          onClick={resetTimer} 
-                          variant="outline" 
+                        <Button
+                          onClick={resetTimer}
+                          variant="outline"
                           size="lg"
                           className="rounded-full px-6 py-4 font-medium shadow-lg hover:shadow-xl transition-all border-2"
                         >
@@ -522,7 +508,6 @@ export default function PomodoroTodoApp() {
                         </Button>
                       </div>
                     </div>
-
                     {/* Tarea activa */}
                     {activeTask && (
                       <div className="bg-gradient-to-r from-purple-50 to-indigo-50 p-6 rounded-2xl border border-purple-100 shadow-lg">
@@ -553,7 +538,6 @@ export default function PomodoroTodoApp() {
                         </div>
                       </div>
                     )}
-
                     {/* Estadísticas rápidas */}
                     <div className="bg-gradient-to-r from-gray-50 to-gray-100 p-6 rounded-2xl shadow-lg">
                       <h3 className="font-bold mb-4 text-center text-gray-800">📊 Resumen de Hoy</h3>
@@ -571,7 +555,6 @@ export default function PomodoroTodoApp() {
                   </CardContent>
                 </Card>
               </div>
-
               {/* Panel de Tareas */}
               <div className="lg:col-span-3 space-y-6">
                 {/* Botón para agregar tarea */}
@@ -591,7 +574,7 @@ export default function PomodoroTodoApp() {
                     <DialogHeader>
                       <DialogTitle className="text-xl font-bold text-center">✨ Nueva Tarea</DialogTitle>
                     </DialogHeader>
-                    <TaskForm 
+                    <TaskForm
                       task={newTask}
                       setTask={setNewTask}
                       onSubmit={addTask}
@@ -599,7 +582,6 @@ export default function PomodoroTodoApp() {
                     />
                   </DialogContent>
                 </Dialog>
-
                 {/* Dialog para editar tarea */}
                 <Dialog open={isEditTaskOpen} onOpenChange={setIsEditTaskOpen}>
                   <DialogContent className="sm:max-w-lg">
@@ -607,7 +589,7 @@ export default function PomodoroTodoApp() {
                       <DialogTitle className="text-xl font-bold text-center">✏️ Editar Tarea</DialogTitle>
                     </DialogHeader>
                     {editingTask && (
-                      <TaskForm 
+                      <TaskForm
                         task={{
                           title: editingTask.title,
                           description: editingTask.description,
@@ -624,7 +606,6 @@ export default function PomodoroTodoApp() {
                     )}
                   </DialogContent>
                 </Dialog>
-
                 {/* Lista de tareas pendientes */}
                 <Card className="shadow-xl border-0 bg-white/80 backdrop-blur-sm">
                   <CardHeader className="bg-gradient-to-r from-purple-500 to-indigo-500 text-white rounded-t-lg">
@@ -660,7 +641,6 @@ export default function PomodoroTodoApp() {
                     )}
                   </CardContent>
                 </Card>
-
                 {/* Lista de tareas completadas */}
                 {completedTasks.length > 0 && (
                   <Card className="shadow-xl border-0 bg-white/80 backdrop-blur-sm">
@@ -691,9 +671,8 @@ export default function PomodoroTodoApp() {
               </div>
             </div>
           </TabsContent>
-
           <TabsContent value="stats">
-            <StatsPanel 
+            <StatsPanel
               pomodoroHistory={pomodoroHistory}
               todayStats={todayStats}
               weekStats={weekStats}
@@ -711,25 +690,23 @@ export default function PomodoroTodoApp() {
 // Componente para badge de prioridad
 function PriorityBadge({ priority }: { priority: Priority }) {
   const config = {
-    high: { 
-      icon: ArrowUp, 
-      text: 'Alta', 
-      className: 'bg-red-100 text-red-800 border-red-200' 
+    high: {
+      icon: ArrowUp,
+      text: 'Alta',
+      className: 'bg-red-100 text-red-800 border-red-200'
     },
-    medium: { 
-      icon: Minus, 
-      text: 'Media', 
-      className: 'bg-yellow-100 text-yellow-800 border-yellow-200' 
+    medium: {
+      icon: Minus,
+      text: 'Media',
+      className: 'bg-yellow-100 text-yellow-800 border-yellow-200'
     },
-    low: { 
-      icon: ArrowDown, 
-      text: 'Baja', 
-      className: 'bg-green-100 text-green-800 border-green-200' 
+    low: {
+      icon: ArrowDown,
+      text: 'Baja',
+      className: 'bg-green-100 text-green-800 border-green-200'
     }
   }
-  
   const { icon: Icon, text, className } = config[priority]
-  
   return (
     <Badge className={`${className} text-xs font-medium flex items-center gap-1`}>
       <Icon className="h-3 w-3" />
@@ -739,11 +716,11 @@ function PriorityBadge({ priority }: { priority: Priority }) {
 }
 
 // Componente mejorado para cada tarea
-function TaskItem({ 
-  task, 
-  isActive, 
-  onToggle, 
-  onDelete, 
+function TaskItem({
+  task,
+  isActive,
+  onToggle,
+  onDelete,
   onSelect,
   onEdit,
   dueDateStatus
@@ -758,19 +735,15 @@ function TaskItem({
 }) {
   const getDueDateBadge = () => {
     if (!task.dueDate || task.completed) return null
-    
     const badgeProps = {
       overdue: { className: "bg-red-100 text-red-800 border-red-200", icon: AlertTriangle, text: "Vencida" },
       today: { className: "bg-orange-100 text-orange-800 border-orange-200", icon: Calendar, text: "Hoy" },
       soon: { className: "bg-yellow-100 text-yellow-800 border-yellow-200", icon: Calendar, text: "Próxima" },
       normal: { className: "bg-blue-100 text-blue-800 border-blue-200", icon: Calendar, text: "Programada" }
     }
-    
     const props = badgeProps[dueDateStatus as keyof typeof badgeProps]
     if (!props) return null
-    
     const Icon = props.icon
-    
     return (
       <Badge className={`${props.className} text-xs font-medium`}>
         <Icon className="h-3 w-3 mr-1" />
@@ -778,11 +751,10 @@ function TaskItem({
       </Badge>
     )
   }
-
   return (
     <div className={`group p-5 rounded-2xl border-2 transition-all duration-300 hover:shadow-lg ${
-      isActive 
-        ? 'border-purple-300 bg-gradient-to-r from-purple-50 to-indigo-50 shadow-md' 
+      isActive
+        ? 'border-purple-300 bg-gradient-to-r from-purple-50 to-indigo-50 shadow-md'
         : task.completed
         ? 'border-gray-200 bg-gray-50/50 opacity-75'
         : 'border-gray-200 bg-white hover:border-purple-200 hover:bg-purple-50/30'
@@ -793,14 +765,13 @@ function TaskItem({
           size="icon"
           onClick={() => onToggle(task.id)}
           className={`h-7 w-7 rounded-full border-2 transition-all flex-shrink-0 mt-1 ${
-            task.completed 
-              ? 'bg-green-500 border-green-500 text-white hover:bg-green-600' 
+            task.completed
+              ? 'bg-green-500 border-green-500 text-white hover:bg-green-600'
               : 'border-gray-300 hover:border-green-500 hover:bg-green-50'
           }`}
         >
           {task.completed && <Check className="h-4 w-4" />}
         </Button>
-        
         <div className="flex-1 min-w-0">
           <div className="flex items-start justify-between gap-3 mb-2">
             <div className="flex items-start gap-2 flex-1">
@@ -829,8 +800,8 @@ function TaskItem({
                     size="sm"
                     onClick={() => onSelect(task.id)}
                     className={`rounded-full px-4 py-1 text-xs font-medium transition-all ${
-                      isActive 
-                        ? 'bg-purple-600 hover:bg-purple-700 shadow-md' 
+                      isActive
+                        ? 'bg-purple-600 hover:bg-purple-700 shadow-md'
                         : 'hover:bg-purple-50 border-purple-200'
                     }`}
                   >
@@ -848,7 +819,6 @@ function TaskItem({
               </Button>
             </div>
           </div>
-          
           {task.description && (
             <p className={`text-sm mb-3 leading-relaxed ${
               task.completed ? 'text-gray-400' : 'text-gray-600'
@@ -856,7 +826,6 @@ function TaskItem({
               {task.description}
             </p>
           )}
-          
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
               {task.pomodorosCompleted > 0 && (
@@ -868,7 +837,6 @@ function TaskItem({
                 </div>
               )}
             </div>
-            
             {task.dueDate && (
               <div className="text-xs text-gray-500 flex items-center gap-1">
                 <Calendar className="h-3 w-3" />
@@ -887,9 +855,9 @@ function TaskItem({
 }
 
 // Componente para formulario de tarea (agregar/editar)
-function TaskForm({ 
-  task, 
-  setTask, 
+function TaskForm({
+  task,
+  setTask,
   onSubmit,
   submitText
 }: {
@@ -902,7 +870,6 @@ function TaskForm({
     e.preventDefault()
     onSubmit()
   }
-
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
       <div>
@@ -918,7 +885,6 @@ function TaskForm({
           required
         />
       </div>
-      
       <div>
         <Label htmlFor="description" className="text-sm font-semibold text-gray-700">
           Descripción (opcional)
@@ -932,7 +898,6 @@ function TaskForm({
           rows={3}
         />
       </div>
-
       <div>
         <Label htmlFor="priority" className="text-sm font-semibold text-gray-700">
           Prioridad
@@ -963,7 +928,6 @@ function TaskForm({
           </SelectContent>
         </Select>
       </div>
-      
       <div>
         <Label htmlFor="dueDate" className="text-sm font-semibold text-gray-700">
           Fecha límite (opcional)
@@ -977,9 +941,8 @@ function TaskForm({
           min={new Date().toISOString().split('T')[0]}
         />
       </div>
-      
-      <Button 
-        type="submit" 
+      <Button
+        type="submit"
         className="w-full bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white font-semibold py-3 rounded-xl shadow-lg hover:shadow-xl transition-all"
         disabled={!task.title.trim()}
       >
@@ -991,19 +954,17 @@ function TaskForm({
 }
 
 // Componente para configurar el Pomodoro
-function SettingsForm({ 
-  settings, 
-  onSave 
+function SettingsForm({
+  settings,
+  onSave
 }: {
   settings: PomodoroSettings
   onSave: (settings: PomodoroSettings) => void
 }) {
   const [formSettings, setFormSettings] = useState(settings)
-
   const handleSave = () => {
     onSave(formSettings)
   }
-
   return (
     <div className="space-y-6">
       <div>
@@ -1023,7 +984,6 @@ function SettingsForm({
           className="mt-2 p-3 rounded-xl border-2 focus:border-purple-400"
         />
       </div>
-      
       <div>
         <Label htmlFor="shortBreak" className="text-sm font-semibold text-gray-700">
           ☕ Descanso Corto (minutos)
@@ -1041,7 +1001,6 @@ function SettingsForm({
           className="mt-2 p-3 rounded-xl border-2 focus:border-green-400"
         />
       </div>
-      
       <div>
         <Label htmlFor="longBreak" className="text-sm font-semibold text-gray-700">
           🌟 Descanso Largo (minutos)
@@ -1059,7 +1018,6 @@ function SettingsForm({
           className="mt-2 p-3 rounded-xl border-2 focus:border-blue-400"
         />
       </div>
-      
       <div>
         <Label htmlFor="longBreakInterval" className="text-sm font-semibold text-gray-700">
           🔄 Descanso largo cada (pomodoros)
@@ -1077,9 +1035,8 @@ function SettingsForm({
           className="mt-2 p-3 rounded-xl border-2 focus:border-purple-400"
         />
       </div>
-      
-      <Button 
-        onClick={handleSave} 
+      <Button
+        onClick={handleSave}
         className="w-full bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white font-semibold py-3 rounded-xl shadow-lg hover:shadow-xl transition-all"
       >
         💾 Guardar Configuración
@@ -1089,13 +1046,13 @@ function SettingsForm({
 }
 
 // Componente de estadísticas
-function StatsPanel({ 
-  pomodoroHistory, 
-  todayStats, 
-  weekStats, 
-  monthStats, 
-  hourlyStats, 
-  dailyStats 
+function StatsPanel({
+  pomodoroHistory,
+  todayStats,
+  weekStats,
+  monthStats,
+  hourlyStats,
+  dailyStats
 }: {
   pomodoroHistory: PomodoroRecord[]
   todayStats: PomodoroRecord[]
@@ -1106,7 +1063,6 @@ function StatsPanel({
 }) {
   const maxHourlyCount = Math.max(...hourlyStats.map(h => h.count), 1)
   const maxDailyCount = Math.max(...dailyStats.map(d => d.count), 1)
-
   return (
     <div className="space-y-8">
       {/* Resumen general */}
@@ -1118,7 +1074,6 @@ function StatsPanel({
             <div className="text-sm text-blue-600">Pomodoros completados</div>
           </CardContent>
         </Card>
-        
         <Card className="shadow-xl border-0 bg-gradient-to-br from-green-50 to-green-100">
           <CardContent className="p-6 text-center">
             <div className="text-4xl font-bold text-green-600 mb-2">{weekStats.length}</div>
@@ -1126,7 +1081,6 @@ function StatsPanel({
             <div className="text-sm text-green-600">Pomodoros completados</div>
           </CardContent>
         </Card>
-        
         <Card className="shadow-xl border-0 bg-gradient-to-br from-purple-50 to-purple-100">
           <CardContent className="p-6 text-center">
             <div className="text-4xl font-bold text-purple-600 mb-2">{monthStats.length}</div>
@@ -1135,7 +1089,6 @@ function StatsPanel({
           </CardContent>
         </Card>
       </div>
-
       {/* Gráficos */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
         {/* Estadísticas por hora */}
@@ -1154,7 +1107,7 @@ function StatsPanel({
                     {stat.hour.toString().padStart(2, '0')}:00
                   </div>
                   <div className="flex-1 bg-gray-200 rounded-full h-4 relative overflow-hidden">
-                    <div 
+                    <div
                       className="bg-gradient-to-r from-purple-500 to-indigo-500 h-full rounded-full transition-all duration-500"
                       style={{ width: `${(stat.count / maxHourlyCount) * 100}%` }}
                     ></div>
@@ -1167,7 +1120,6 @@ function StatsPanel({
             </div>
           </CardContent>
         </Card>
-
         {/* Estadísticas por día de la semana */}
         <Card className="shadow-xl border-0 bg-white/80 backdrop-blur-sm">
           <CardHeader>
@@ -1184,7 +1136,7 @@ function StatsPanel({
                     {stat.day}
                   </div>
                   <div className="flex-1 bg-gray-200 rounded-full h-6 relative overflow-hidden">
-                    <div 
+                    <div
                       className="bg-gradient-to-r from-green-500 to-emerald-500 h-full rounded-full transition-all duration-500"
                       style={{ width: `${(stat.count / maxDailyCount) * 100}%` }}
                     ></div>
@@ -1198,7 +1150,6 @@ function StatsPanel({
           </CardContent>
         </Card>
       </div>
-
       {/* Historial reciente */}
       <Card className="shadow-xl border-0 bg-white/80 backdrop-blur-sm">
         <CardHeader>

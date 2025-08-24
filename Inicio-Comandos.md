@@ -49,3 +49,6 @@ npm run dev
 # Terminal 2: Inicia Electron
 ```bash
 npx electron main.js
+
+Credencial de la api de Youtube
+AIzaSyB-SaCJfo_URPA9iAUFQNo26i3bLzbDtNM

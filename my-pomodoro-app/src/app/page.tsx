@@ -6,6 +6,7 @@ import { Target, BarChart3 } from 'lucide-react'
 import PomodoroTimer from './components/PomodoroTimer'
 import TaskList from './components/TaskList'
 import StatsPanel from './components/StatsPanel'
+import MusicPlayer from './components/MusicPlayer'
 import { usePomodoroTimer } from './hooks/usePomodoroTimer'
 import { useTaskManager } from './hooks/useTaskManager'
 import { useStatsCalculator } from './hooks/useStatsCalculator'
@@ -20,7 +21,6 @@ export default function PomodoroTodoApp() {
     longBreakInterval: 4
   })
 
-  // Custom hooks
   const {
     tasks,
     activeTaskId,
@@ -44,7 +44,7 @@ export default function PomodoroTodoApp() {
 
   const statsCalculator = useStatsCalculator(pomodoroHistory)
 
-  // Cargar datos del localStorage al iniciar
+  // Cargar datos del localStorage
   useEffect(() => {
     const savedHistory = localStorage.getItem('pomodoro-history')
     const savedSettings = localStorage.getItem('pomodoro-settings')
@@ -63,7 +63,6 @@ export default function PomodoroTodoApp() {
     }
   }, [])
 
-  // Guardar datos en localStorage cuando cambien
   useEffect(() => {
     localStorage.setItem('pomodoro-history', JSON.stringify(pomodoroHistory))
   }, [pomodoroHistory])
@@ -72,7 +71,6 @@ export default function PomodoroTodoApp() {
     localStorage.setItem('pomodoro-settings', JSON.stringify(settings))
   }, [settings])
 
-  // Manejar completado de pomodoro con historial
   const handleTimerComplete = (currentSessionStart: Date | null) => {
     const endTime = new Date()
     const activeTask = tasks.find(task => task.id === activeTaskId)
@@ -129,26 +127,34 @@ export default function PomodoroTodoApp() {
 
           <TabsContent value="pomodoro">
             <div className="grid lg:grid-cols-5 gap-8">
-              {/* Panel del Pomodoro */}
-              <div className="lg:col-span-2">
-                <PomodoroTimer
-                  timeLeft={timeLeft}
-                  isRunning={isRunning}
-                  mode={mode}
-                  settings={settings}
-                  activeTask={activeTask}
-                  completedPomodoros={completedPomodoros}
-                  completedTasks={completedTasks}
-                  todayStats={statsCalculator.getStatsForPeriod(1)}
-                  onToggleTimer={toggleTimer}
-                  onResetTimer={resetTimer}
-                  onSwitchMode={switchMode}
-                  onUpdateSettings={setSettings}
-                  onTimerComplete={handleTimerComplete}
-                />
+              {/* Columna izquierda: Temporizador + Música */}
+              <div className="lg:col-span-2 space-y-6">
+                {/* Temporizador */}
+                <div className="bg-white/60 rounded-2xl p-6 shadow-lg backdrop-blur-sm border border-purple-100">
+                  <PomodoroTimer
+                    timeLeft={timeLeft}
+                    isRunning={isRunning}
+                    mode={mode}
+                    settings={settings}
+                    activeTask={activeTask}
+                    completedPomodoros={completedPomodoros}
+                    completedTasks={completedTasks}
+                    todayStats={statsCalculator.getStatsForPeriod(1)}
+                    onToggleTimer={toggleTimer}
+                    onResetTimer={resetTimer}
+                    onSwitchMode={switchMode}
+                    onUpdateSettings={setSettings}
+                    onTimerComplete={handleTimerComplete}
+                  />
+                </div>
+
+                {/* Reproductor de música */}
+                <div className="bg-white/60 rounded-2xl p-6 shadow-lg backdrop-blur-sm border border-indigo-100">
+                  <MusicPlayer isTimerRunning={isRunning} />
+                </div>
               </div>
 
-              {/* Panel de Tareas */}
+              {/* Columna derecha: Tareas */}
               <div className="lg:col-span-3">
                 <TaskList
                   pendingTasks={pendingTasks}

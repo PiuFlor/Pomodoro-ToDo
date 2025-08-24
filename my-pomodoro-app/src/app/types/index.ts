@@ -36,3 +36,21 @@ export interface TaskFormData {
   dueDate: string
   priority: Priority
 }
+
+// Nuevos tipos para música
+export interface Track {
+  id: string
+  title: string
+  artist: string
+  thumbnail: string
+  duration: string
+  url: string
+}
+
+export interface MusicPlayerState {
+  currentTrack: Track | null
+  isPlaying: boolean
+  volume: number
+  currentTime: number
+  duration: number
+}

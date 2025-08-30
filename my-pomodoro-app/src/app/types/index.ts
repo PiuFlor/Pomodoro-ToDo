@@ -8,7 +8,7 @@ export interface Task {
   dueDate: string | null
   priority: Priority
   completed: boolean
-  pomodorosCompleted: number
+  totalPomodoros: number  // Cambio: de pomodorosCompleted a totalPomodoros
   createdAt: Date
   updatedAt: Date
 }
@@ -37,7 +37,7 @@ export interface TaskFormData {
   priority: Priority
 }
 
-// Nuevos tipos para música
+// Tipos para música
 export interface Track {
   id: string
   title: string

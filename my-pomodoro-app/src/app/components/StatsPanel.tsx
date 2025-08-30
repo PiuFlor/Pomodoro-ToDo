@@ -1,3 +1,4 @@
+// app/components/StatsPanel.tsx
 import { useState } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from "@/app/components/ui/card"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/app/components/ui/select"
@@ -251,7 +252,8 @@ export default function StatsPanel({ pomodoroHistory, statsCalculator }: StatsPa
                     <div>
                       <div className="font-medium text-gray-800">{record.taskTitle}</div>
                       <div className="text-sm text-gray-600">
-                        {record.endTime.toLocaleDateString('es-ES', {
+                        {/* ✅ Convertir a Date si es necesario */}
+                        {new Date(record.endTime).toLocaleDateString('es-ES', {
                           day: 'numeric',
                           month: 'short',
                           year: selectedPeriod === 'historical' ? 'numeric' : undefined,

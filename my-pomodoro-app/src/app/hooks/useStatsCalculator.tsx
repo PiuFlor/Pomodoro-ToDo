@@ -1,13 +1,23 @@
+// app/hooks/useStatsCalculator.ts
 import { useMemo } from 'react'
 import type { PomodoroRecord } from '../types'
 
 export function useStatsCalculator(pomodoroHistory: PomodoroRecord[]) {
+  // ✅ Convertir todos los endTime de string a Date si es necesario
+  const normalizedHistory = useMemo(() => {
+    return pomodoroHistory.map(record => ({
+      ...record,
+      endTime: typeof record.endTime === 'string' ? new Date(record.endTime) : record.endTime,
+      startTime: typeof record.startTime === 'string' ? new Date(record.startTime) : record.startTime
+    }))
+  }, [pomodoroHistory])
+
   const getStatsForPeriod = (days: number, targetDate?: Date) => {
     const referenceDate = targetDate || new Date()
     const startDate = new Date(referenceDate.getTime() - days * 24 * 60 * 60 * 1000)
     const endDate = targetDate ? new Date(referenceDate.getTime() + 24 * 60 * 60 * 1000) : new Date()
     
-    return pomodoroHistory.filter(record => 
+    return normalizedHistory.filter(record => 
       record.mode === 'work' && 
       record.completed && 
       record.endTime >= startDate &&
@@ -19,7 +29,7 @@ export function useStatsCalculator(pomodoroHistory: PomodoroRecord[]) {
     const startDate = new Date(year, month, 1)
     const endDate = new Date(year, month + 1, 0, 23, 59, 59)
     
-    return pomodoroHistory.filter(record => 
+    return normalizedHistory.filter(record => 
       record.mode === 'work' && 
       record.completed && 
       record.endTime >= startDate &&
@@ -54,7 +64,7 @@ export function useStatsCalculator(pomodoroHistory: PomodoroRecord[]) {
 
   const getAvailableMonths = () => {
     const months = new Set<string>()
-    pomodoroHistory.forEach(record => {
+    normalizedHistory.forEach(record => {
       if (record.mode === 'work' && record.completed) {
         const date = record.endTime
         const key = `${date.getFullYear()}-${date.getMonth()}`

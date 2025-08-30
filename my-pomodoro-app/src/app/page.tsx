@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "./components/ui/tabs"
 import { Target, BarChart3 } from 'lucide-react'
 import PomodoroTimer from './components/PomodoroTimer'
@@ -8,40 +8,39 @@ import TaskList from './components/TaskList'
 import StatsPanel from './components/StatsPanel'
 import MusicPlayer from './components/MusicPlayer'
 import { usePomodoroTimer } from './hooks/usePomodoroTimer'
-import { useTaskManager } from './hooks/useTaskManager'
+import { useTasksDatabase, usePomodoroRecordsDatabase, useSettingsDatabase } from './hooks/useDatabase'
 import { useStatsCalculator } from './hooks/useStatsCalculator'
-import type { Task, PomodoroRecord, PomodoroSettings } from './types'
+import { TaskFormData, Task } from './types'
 
 export default function PomodoroTodoApp() {
-  const [pomodoroHistory, setPomodoroHistory] = useState<PomodoroRecord[]>([])
-  const [settings, setSettings] = useState<PomodoroSettings>({
-    workTime: 25,
-    shortBreak: 5,
-    longBreak: 15,
-    longBreakInterval: 4
-  })
-
   const {
     tasks,
-    activeTaskId,
-    addTask,
+    loading: tasksLoading,
+    error: tasksError,
+    createTask: addTask,
     updateTask,
     toggleTask,
     deleteTask,
-    selectActiveTask
-  } = useTaskManager()
+    incrementTaskPomodoros
+  } = useTasksDatabase()
 
+  const {
+    records: pomodoroHistory,
+    loading: recordsLoading,
+    error: recordsError,
+    createRecord
+  } = usePomodoroRecordsDatabase()
+
+  const {
+    settings,
+    loading: settingsLoading,
+    error: settingsError,
+    updateSettings: setSettings
+  } = useSettingsDatabase()
+
+  const [activeTaskId, setActiveTaskId] = useState<string | null>(null)
   const [musicVolume, setMusicVolume] = useState(0.7)
   const [volumeBeforeAlarm, setVolumeBeforeAlarm] = useState(0.7)
-
-  useEffect(() => {
-    const saved = localStorage.getItem('music-volume')
-    if (saved) setMusicVolume(parseFloat(saved))
-  }, [])
-
-  useEffect(() => {
-    localStorage.setItem('music-volume', musicVolume.toString())
-  }, [musicVolume])
 
   const {
     timeLeft,
@@ -51,21 +50,24 @@ export default function PomodoroTodoApp() {
     toggleTimer,
     resetTimer,
     switchMode
-  } = usePomodoroTimer(settings, (currentSessionStart) => {
+  } = usePomodoroTimer(settings, async (currentSessionStart) => {
     const endTime = new Date()
     const activeTask = tasks.find(t => t.id === activeTaskId)
 
-    const record = {
-      id: Date.now().toString(),
+    // Crear registro en la base de datos
+    await createRecord({
       taskId: activeTaskId,
       taskTitle: activeTask?.title || 'Sin tarea',
       startTime: currentSessionStart || new Date(endTime.getTime() - (mode === 'work' ? settings.workTime : mode === 'shortBreak' ? settings.shortBreak : settings.longBreak) * 60 * 1000),
       endTime,
       mode,
       completed: true
-    }
+    })
 
-    setPomodoroHistory(prev => [...prev, record])
+    // Incrementar pomodoros de la tarea activa si es modo trabajo
+    if (mode === 'work' && activeTaskId) {
+      await incrementTaskPomodoros(activeTaskId)
+    }
 
     setVolumeBeforeAlarm(musicVolume)
     setMusicVolume(0.1)
@@ -77,31 +79,9 @@ export default function PomodoroTodoApp() {
 
   const statsCalculator = useStatsCalculator(pomodoroHistory)
 
-  useEffect(() => {
-    const savedHistory = localStorage.getItem('pomodoro-history')
-    const savedSettings = localStorage.getItem('pomodoro-settings')
-
-    if (savedHistory) {
-      const parsed = JSON.parse(savedHistory).map((r: any) => ({
-        ...r,
-        startTime: new Date(r.startTime),
-        endTime: new Date(r.endTime)
-      }))
-      setPomodoroHistory(parsed)
-    }
-
-    if (savedSettings) {
-      setSettings(JSON.parse(savedSettings))
-    }
-  }, [])
-
-  useEffect(() => {
-    localStorage.setItem('pomodoro-history', JSON.stringify(pomodoroHistory))
-  }, [pomodoroHistory])
-
-  useEffect(() => {
-    localStorage.setItem('pomodoro-settings', JSON.stringify(settings))
-  }, [settings])
+  const selectActiveTask = (id: string) => {
+    setActiveTaskId(activeTaskId === id ? null : id)
+  }
 
   const activeTask = tasks.find(t => t.id === activeTaskId)
   const pendingTasks = tasks.filter(t => !t.completed).sort((a, b) => {
@@ -109,6 +89,32 @@ export default function PomodoroTodoApp() {
     return order[b.priority] - order[a.priority]
   })
   const completedTasks = tasks.filter(t => t.completed)
+
+  // Loading state
+  if (tasksLoading || recordsLoading || settingsLoading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-violet-50 via-purple-50 to-indigo-100 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-purple-600 mx-auto mb-4"></div>
+          <p className="text-lg text-gray-600">Cargando aplicación...</p>
+        </div>
+      </div>
+    )
+  }
+
+  // Error state
+  if (tasksError || recordsError || settingsError) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-violet-50 via-purple-50 to-indigo-100 flex items-center justify-center">
+        <div className="bg-red-50 border border-red-200 rounded-lg p-6 max-w-md">
+          <h2 className="text-red-800 font-semibold mb-2">Error de conexión</h2>
+          <p className="text-red-600">
+            {tasksError || recordsError || settingsError}
+          </p>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-violet-50 via-purple-50 to-indigo-100">
@@ -173,14 +179,30 @@ export default function PomodoroTodoApp() {
                   pendingTasks={pendingTasks}
                   completedTasks={completedTasks}
                   activeTaskId={activeTaskId}
-                  onAddTask={(taskData) => {
-                    addTask(taskData)
-                    return true
-                  }}
-                  onUpdateTask={updateTask}
                   onToggleTask={toggleTask}
                   onDeleteTask={deleteTask}
                   onSelectActiveTask={selectActiveTask}
+                  onAddTask={async (taskData) => {
+                    try {
+                      await addTask(taskData);
+                      return true;
+                    } catch (error) {
+                      console.error('Error adding task:', error);
+                      return false;
+                    }
+                  }}
+                  onUpdateTask={async (task) => {
+                  try {
+                    await updateTask(task.id, { 
+                      ...task, 
+                      dueDate: task.dueDate ?? "" // Ensure dueDate is a string
+                    });
+                    return true;
+                  } catch (error) {
+                    console.error('Error updating task:', error);
+                    return false;
+                  }
+                }}
                 />
               </div>
             </div>

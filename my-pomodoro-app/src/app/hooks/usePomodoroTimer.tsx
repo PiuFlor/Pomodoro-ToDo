@@ -3,7 +3,7 @@ import type { PomodoroSettings, TimerMode } from '../types'
 
 export function usePomodoroTimer(
   settings: PomodoroSettings,
-  onTimerComplete?: (sessionStart: Date | null) => void
+  onTimerComplete?: (sessionStart: Date | null) => Promise<void>
 ) {
   const [timeLeft, setTimeLeft] = useState(settings.workTime * 60)
   const [isRunning, setIsRunning] = useState(false)
@@ -44,11 +44,18 @@ export function usePomodoroTimer(
     setTimeLeft(time * 60)
   }
 
-  const handleTimerComplete = () => {
+  const handleTimerComplete = async () => {
     const sessionStart = currentSessionStart
     setCurrentSessionStart(null)
 
-    if (onTimerComplete) onTimerComplete(sessionStart)
+    // Llamar al callback con await para manejar la promesa
+    if (onTimerComplete) {
+      try {
+        await onTimerComplete(sessionStart)
+      } catch (error) {
+        console.error('Error al completar el temporizador:', error)
+      }
+    }
 
     playAlarmSound()
 

@@ -24,24 +24,26 @@ export function useYouTubeSearch() {
 
       const data = await response.json()
 
-      if (data.items) {
-        const tracks = await Promise.all(
-          data.items.map(async (item: any) => {
-            const duration = await getVideoDuration(item.id.videoId)
-            return {
-              id: item.id.videoId,
-              title: item.snippet.title,
-              artist: item.snippet.channelTitle,
-              thumbnail: item.snippet.thumbnails.high.url,
-              duration,
-              url: `https://www.youtube.com/embed/${item.id.videoId}?autoplay=1&enablejsapi=1&origin=${window.location.origin}`,
-            }
-          })
-        )
-        setSearchResults(tracks)
-      } else {
+      // ✅ Validación agregada
+      if (!data.items || !Array.isArray(data.items)) {
         setSearchResults([])
+        return
       }
+
+      const tracks = await Promise.all(
+        data.items.map(async (item: any) => {
+          const duration = await getVideoDuration(item.id.videoId)
+          return {
+            id: item.id.videoId,
+            title: item.snippet.title,
+            artist: item.snippet.channelTitle,
+            thumbnail: item.snippet.thumbnails.high.url,
+            duration,
+            url: `https://www.youtube.com/embed/${item.id.videoId}?autoplay=1&enablejsapi=1&origin=${window.location.origin}`,
+          }
+        })
+      )
+      setSearchResults(tracks)
     } catch (error) {
       console.error('Error searching YouTube:', error)
       setSearchResults([])
@@ -51,45 +53,78 @@ export function useYouTubeSearch() {
   }
 
   const getVideoDuration = async (videoId: string): Promise<string> => {
+    if (!API_KEY) return 'N/A'
+    
     try {
       const response = await fetch(
         `https://www.googleapis.com/youtube/v3/videos?part=contentDetails&id=${videoId}&key=${API_KEY}`
       )
       const data = await response.json()
-      if (data.items?.length) {
-        const iso = data.items[0].contentDetails.duration
-        return convertISO8601ToTime(iso)
+      
+      // ✅ Validación agregada
+      if (!data.items || !Array.isArray(data.items) || data.items.length === 0) {
+        return 'N/A'
       }
+      
+      const iso = data.items[0].contentDetails.duration
+      return convertISO8601ToTime(iso)
     } catch (err) {
-      console.warn('Could not fetch duration for', videoId)
+      console.warn('Could not fetch duration for', videoId, err)
+      return 'N/A'
     }
-    return 'N/A'
   }
 
   const convertISO8601ToTime = (iso: string): string => {
-    const match = iso.match(/PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?/)
-    const h = parseInt(match?.[1] || '0', 10)
-    const m = parseInt(match?.[2] || '0', 10)
-    const s = parseInt(match?.[3] || '0', 10)
-    const totalMinutes = h * 60 + m
-    return `${totalMinutes}:${s.toString().padStart(2, '0')}`
+    try {
+      const match = iso.match(/PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?/)
+      if (!match) return '0:00'
+      
+      const h = parseInt(match[1] || '0', 10)
+      const m = parseInt(match[2] || '0', 10)
+      const s = parseInt(match[3] || '0', 10)
+      const totalMinutes = h * 60 + m
+      return `${totalMinutes}:${s.toString().padStart(2, '0')}`
+    } catch (error) {
+      console.warn('Error converting duration:', iso, error)
+      return '0:00'
+    }
   }
 
   const getPopularTracks = async () => {
-    if (!API_KEY) return
+    if (!API_KEY) {
+      console.warn('YouTube API key not found')
+      return
+    }
+    
     setIsLoading(true)
     try {
       const response = await fetch(
         `https://www.googleapis.com/youtube/v3/videos?part=snippet,contentDetails&chart=mostPopular&maxResults=6&videoCategoryId=10&regionCode=US&key=${API_KEY}`
       )
+      
+      // ✅ Verificar si la respuesta es OK
+      if (!response.ok) {
+        throw new Error(`YouTube API error: ${response.status} ${response.statusText}`)
+      }
+      
       const data = await response.json()
+
+      // ✅ DEBUG: Ver qué responde la API
+      console.log('YouTube API Response:', data)
+
+      // ✅ Validación robusta
+      if (!data.items || !Array.isArray(data.items) || data.items.length === 0) {
+        console.warn('No items found in YouTube API response')
+        setSearchResults([])
+        return
+      }
 
       const tracks = await Promise.all(
         data.items.map(async (item: any) => ({
           id: item.id,
           title: item.snippet.title,
           artist: item.snippet.channelTitle,
-          thumbnail: item.snippet.thumbnails.high.url,
+          thumbnail: item.snippet.thumbnails.high?.url || item.snippet.thumbnails.default.url,
           duration: convertISO8601ToTime(item.contentDetails.duration),
           url: `https://www.youtube.com/embed/${item.id}?autoplay=1&enablejsapi=1&origin=${window.location.origin}`,
         }))

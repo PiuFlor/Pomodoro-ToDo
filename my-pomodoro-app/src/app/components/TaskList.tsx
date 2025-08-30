@@ -12,8 +12,8 @@ interface TaskListProps {
   pendingTasks: Task[]
   completedTasks: Task[]
   activeTaskId: string | null
-  onAddTask: (taskData: TaskFormData) => boolean
-  onUpdateTask: (task: Task) => boolean
+  onAddTask: (taskData: TaskFormData) => Promise<boolean>  // ← Cambiado a Promise<boolean>
+  onUpdateTask: (task: Task) => Promise<boolean>           // ← Cambiado a Promise<boolean>
   onToggleTask: (id: string) => void
   onDeleteTask: (id: string) => void
   onSelectActiveTask: (id: string) => void
@@ -41,17 +41,21 @@ export default function TaskList({
   const [isPendingOpen, setIsPendingOpen] = useState(true)
   const [isCompletedOpen, setIsCompletedOpen] = useState(false)
 
-  const handleAddTask = () => {
-    if (onAddTask(newTask)) {
+  const handleAddTask = async () => {
+    const success = await onAddTask(newTask);
+    if (success) {
       setNewTask({ title: '', description: '', dueDate: '', priority: 'medium' })
       setIsAddTaskOpen(false)
     }
   }
 
-  const handleUpdateTask = () => {
-    if (editingTask && onUpdateTask(editingTask)) {
-      setEditingTask(null)
-      setIsEditTaskOpen(false)
+  const handleUpdateTask = async () => {
+    if (editingTask) {
+      const success = await onUpdateTask(editingTask);
+      if (success) {
+        setEditingTask(null)
+        setIsEditTaskOpen(false)
+      }
     }
   }
 

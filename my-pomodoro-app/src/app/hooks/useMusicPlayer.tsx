@@ -20,7 +20,7 @@ declare global {
 export function useMusicPlayer() {
   const [currentTrack, setCurrentTrack] = useState<Track | null>(null)
   const [isPlaying, setIsPlaying] = useState(false)
-  const [volume, setVolume] = useState(0.5)
+  const [volume, setVolume] = useState(0.7)
   const playerRef = useRef<any>(null)
   const containerRef = useRef<HTMLDivElement>(null)
 
@@ -30,7 +30,9 @@ export function useMusicPlayer() {
       const tag = document.createElement('script')
       tag.src = 'https://www.youtube.com/iframe_api'
       const firstScriptTag = document.getElementsByTagName('script')[0]
-      firstScriptTag.parentNode?.insertBefore(tag, firstScriptTag)
+      if (firstScriptTag.parentNode) {
+        firstScriptTag.parentNode.insertBefore(tag, firstScriptTag)
+      }
 
       window.onYouTubeIframeAPIReady = () => {
         if (currentTrack && containerRef.current && !playerRef.current) {
@@ -93,9 +95,15 @@ export function useMusicPlayer() {
   }
 
   const setVolumeLocal = (vol: number) => {
+    const volumeValue = Math.max(0, Math.min(100, Math.round(vol * 100)))
     setVolume(vol)
-    if (playerRef.current) {
-      playerRef.current.setVolume(vol * 100)
+
+    if (window.YT && playerRef.current && typeof playerRef.current.setVolume === 'function') {
+      try {
+        playerRef.current.setVolume(volumeValue)
+      } catch (error) {
+        console.warn('No se pudo ajustar el volumen del reproductor de YouTube', error)
+      }
     }
   }
 

@@ -31,6 +31,18 @@ export default function PomodoroTodoApp() {
     selectActiveTask
   } = useTaskManager()
 
+  const [musicVolume, setMusicVolume] = useState(0.7)
+  const [volumeBeforeAlarm, setVolumeBeforeAlarm] = useState(0.7)
+
+  useEffect(() => {
+    const saved = localStorage.getItem('music-volume')
+    if (saved) setMusicVolume(parseFloat(saved))
+  }, [])
+
+  useEffect(() => {
+    localStorage.setItem('music-volume', musicVolume.toString())
+  }, [musicVolume])
+
   const {
     timeLeft,
     isRunning,
@@ -38,24 +50,44 @@ export default function PomodoroTodoApp() {
     completedPomodoros,
     toggleTimer,
     resetTimer,
-    switchMode,
-    handleTimerComplete: originalHandleTimerComplete
-  } = usePomodoroTimer(settings)
+    switchMode
+  } = usePomodoroTimer(settings, (currentSessionStart) => {
+    const endTime = new Date()
+    const activeTask = tasks.find(t => t.id === activeTaskId)
+
+    const record = {
+      id: Date.now().toString(),
+      taskId: activeTaskId,
+      taskTitle: activeTask?.title || 'Sin tarea',
+      startTime: currentSessionStart || new Date(endTime.getTime() - (mode === 'work' ? settings.workTime : mode === 'shortBreak' ? settings.shortBreak : settings.longBreak) * 60 * 1000),
+      endTime,
+      mode,
+      completed: true
+    }
+
+    setPomodoroHistory(prev => [...prev, record])
+
+    setVolumeBeforeAlarm(musicVolume)
+    setMusicVolume(0.1)
+
+    setTimeout(() => {
+      setMusicVolume(volumeBeforeAlarm)
+    }, 3000)
+  })
 
   const statsCalculator = useStatsCalculator(pomodoroHistory)
 
-  // Cargar datos del localStorage
   useEffect(() => {
     const savedHistory = localStorage.getItem('pomodoro-history')
     const savedSettings = localStorage.getItem('pomodoro-settings')
 
     if (savedHistory) {
-      const parsedHistory = JSON.parse(savedHistory).map((record: any) => ({
-        ...record,
-        startTime: new Date(record.startTime),
-        endTime: new Date(record.endTime)
+      const parsed = JSON.parse(savedHistory).map((r: any) => ({
+        ...r,
+        startTime: new Date(r.startTime),
+        endTime: new Date(r.endTime)
       }))
-      setPomodoroHistory(parsedHistory)
+      setPomodoroHistory(parsed)
     }
 
     if (savedSettings) {
@@ -71,34 +103,15 @@ export default function PomodoroTodoApp() {
     localStorage.setItem('pomodoro-settings', JSON.stringify(settings))
   }, [settings])
 
-  const handleTimerComplete = (currentSessionStart: Date | null) => {
-    const endTime = new Date()
-    const activeTask = tasks.find(task => task.id === activeTaskId)
-    
-    const record: PomodoroRecord = {
-      id: Date.now().toString(),
-      taskId: activeTaskId,
-      taskTitle: activeTask?.title || 'Sin tarea asignada',
-      startTime: currentSessionStart || new Date(endTime.getTime() - (mode === 'work' ? settings.workTime : mode === 'shortBreak' ? settings.shortBreak : settings.longBreak) * 60 * 1000),
-      endTime,
-      mode,
-      completed: true
-    }
-    
-    setPomodoroHistory(prev => [...prev, record])
-    originalHandleTimerComplete()
-  }
-
-  const activeTask = tasks.find(task => task.id === activeTaskId)
-  const pendingTasks = tasks.filter(task => !task.completed).sort((a, b) => {
-    const priorityOrder = { high: 3, medium: 2, low: 1 }
-    return priorityOrder[b.priority] - priorityOrder[a.priority]
+  const activeTask = tasks.find(t => t.id === activeTaskId)
+  const pendingTasks = tasks.filter(t => !t.completed).sort((a, b) => {
+    const order = { high: 3, medium: 2, low: 1 }
+    return order[b.priority] - order[a.priority]
   })
-  const completedTasks = tasks.filter(task => task.completed)
+  const completedTasks = tasks.filter(t => t.completed)
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-violet-50 via-purple-50 to-indigo-100">
-      {/* Header */}
       <div className="bg-white/80 backdrop-blur-sm border-b border-purple-100 sticky top-0 z-10">
         <div className="max-w-7xl mx-auto px-6 py-6">
           <div className="text-center">
@@ -127,9 +140,7 @@ export default function PomodoroTodoApp() {
 
           <TabsContent value="pomodoro">
             <div className="grid lg:grid-cols-5 gap-8">
-              {/* Columna izquierda: Temporizador + Música */}
               <div className="lg:col-span-2 space-y-6">
-                {/* Temporizador */}
                 <div className="bg-white/60 rounded-2xl p-6 shadow-lg backdrop-blur-sm border border-purple-100">
                   <PomodoroTimer
                     timeLeft={timeLeft}
@@ -144,23 +155,28 @@ export default function PomodoroTodoApp() {
                     onResetTimer={resetTimer}
                     onSwitchMode={switchMode}
                     onUpdateSettings={setSettings}
-                    onTimerComplete={handleTimerComplete}
+                    onTimerComplete={() => {}}
                   />
                 </div>
 
-                {/* Reproductor de música */}
                 <div className="bg-white/60 rounded-2xl p-6 shadow-lg backdrop-blur-sm border border-indigo-100">
-                  <MusicPlayer isTimerRunning={isRunning} />
+                  <MusicPlayer
+                    isTimerRunning={isRunning}
+                    musicVolume={musicVolume}
+                    setMusicVolume={setMusicVolume}
+                  />
                 </div>
               </div>
 
-              {/* Columna derecha: Tareas */}
               <div className="lg:col-span-3">
                 <TaskList
                   pendingTasks={pendingTasks}
                   completedTasks={completedTasks}
                   activeTaskId={activeTaskId}
-                  onAddTask={addTask}
+                  onAddTask={(taskData) => {
+                    addTask(taskData)
+                    return true
+                  }}
                   onUpdateTask={updateTask}
                   onToggleTask={toggleTask}
                   onDeleteTask={deleteTask}
@@ -171,10 +187,7 @@ export default function PomodoroTodoApp() {
           </TabsContent>
 
           <TabsContent value="stats">
-            <StatsPanel 
-              pomodoroHistory={pomodoroHistory}
-              statsCalculator={statsCalculator}
-            />
+            <StatsPanel pomodoroHistory={pomodoroHistory} statsCalculator={statsCalculator} />
           </TabsContent>
         </Tabs>
       </div>

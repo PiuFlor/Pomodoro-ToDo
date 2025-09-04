@@ -150,8 +150,16 @@ export function usePomodoroRecordsDatabase() {
       setLoading(true)
       const response = await fetch('/api/pomodoro-records')
       if (!response.ok) throw new Error('Failed to fetch records')
-      const data = await response.json()
-      setRecords(data)
+      const data: PomodoroRecord[] = await response.json()
+
+      // ✅ Normalizar fechas y crear nueva referencia
+      const normalizedRecords = data.map(record => ({
+        ...record,
+        endTime: typeof record.endTime === 'string' ? new Date(record.endTime) : record.endTime,
+        startTime: typeof record.startTime === 'string' ? new Date(record.startTime) : record.startTime
+      }))
+      
+      setRecords(normalizedRecords)
       setError(null)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unknown error')
@@ -180,8 +188,17 @@ export function usePomodoroRecordsDatabase() {
       if (!response.ok) throw new Error('Failed to create record')
       
       const newRecord = await response.json()
-      setRecords(prev => [newRecord, ...prev])
-      return newRecord
+      
+      // ✅ Normalizar fechas del nuevo registro
+      const normalizedRecord = {
+        ...newRecord,
+        endTime: typeof newRecord.endTime === 'string' ? new Date(newRecord.endTime) : newRecord.endTime,
+        startTime: typeof newRecord.startTime === 'string' ? new Date(newRecord.startTime) : newRecord.startTime
+      }
+      
+      // ✅ Actualizar estado local inmediatamente
+      setRecords(prev => [normalizedRecord, ...prev])
+      return normalizedRecord
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unknown error')
       console.error('Error creating record:', err)

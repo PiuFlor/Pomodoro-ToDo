@@ -32,7 +32,7 @@ export function useTaskManager() {
         dueDate: taskData.dueDate || null,
         priority: taskData.priority,
         completed: false,
-        pomodorosCompleted: 0,
+        totalPomodoros: 0,
         createdAt: new Date(),
         updatedAt: new Date()
       }
@@ -74,7 +74,7 @@ export function useTaskManager() {
   const updateTaskPomodoros = (taskId: string) => {
     setTasks(prev => prev.map(task => 
       task.id === taskId 
-        ? { ...task, pomodorosCompleted: task.pomodorosCompleted + 1, updatedAt: new Date() }
+        ? { ...task, pomodorosCompleted: task.totalPomodoros + 1, updatedAt: new Date() }
         : task
     ))
   }

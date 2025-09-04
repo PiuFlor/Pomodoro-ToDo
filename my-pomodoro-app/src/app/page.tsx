@@ -21,14 +21,16 @@ export default function PomodoroTodoApp() {
     updateTask,
     toggleTask,
     deleteTask,
-    incrementTaskPomodoros
+    incrementTaskPomodoros,
+    refreshTasks // ✅ Agregamos refresh
   } = useTasksDatabase()
 
   const {
     records: pomodoroHistory,
     loading: recordsLoading,
     error: recordsError,
-    createRecord
+    createRecord,
+    refreshRecords // ✅ Agregamos refresh
   } = usePomodoroRecordsDatabase()
 
   const {
@@ -54,27 +56,39 @@ export default function PomodoroTodoApp() {
     const endTime = new Date()
     const activeTask = tasks.find(t => t.id === activeTaskId)
 
-    // Crear registro en la base de datos
-    await createRecord({
-      taskId: activeTaskId,
-      taskTitle: activeTask?.title || 'Sin tarea',
-      startTime: currentSessionStart || new Date(endTime.getTime() - (mode === 'work' ? settings.workTime : mode === 'shortBreak' ? settings.shortBreak : settings.longBreak) * 60 * 1000),
-      endTime,
-      mode,
-      completed: true
-    })
+    try {
+      // 1. Crear registro en la base de datos
+      await createRecord({
+        taskId: activeTaskId,
+        taskTitle: activeTask?.title || 'Sin tarea',
+        startTime: currentSessionStart || new Date(endTime.getTime() - (mode === 'work' ? settings.workTime : mode === 'shortBreak' ? settings.shortBreak : settings.longBreak) * 60 * 1000),
+        endTime,
+        mode,
+        completed: true
+      })
 
-    // Incrementar pomodoros de la tarea activa si es modo trabajo
-    if (mode === 'work' && activeTaskId) {
-      await incrementTaskPomodoros(activeTaskId)
+      // 2. Incrementar pomodoros de la tarea activa si es modo trabajo
+      if (mode === 'work' && activeTaskId) {
+        await incrementTaskPomodoros(activeTaskId)
+      }
+
+      // 3. ✅ SOLUCIÓN: Refrescar datos después de todas las operaciones
+      await Promise.all([
+        refreshRecords(), // Recargar registros para estadísticas
+        refreshTasks()    // Recargar tareas para mostrar pomodoros actualizados
+      ])
+
+      // 4. Efectos de sonido
+      setVolumeBeforeAlarm(musicVolume)
+      setMusicVolume(0.1)
+
+      setTimeout(() => {
+        setMusicVolume(volumeBeforeAlarm)
+      }, 3000)
+
+    } catch (error) {
+      console.error('Error completing pomodoro:', error)
     }
-
-    setVolumeBeforeAlarm(musicVolume)
-    setMusicVolume(0.1)
-
-    setTimeout(() => {
-      setMusicVolume(volumeBeforeAlarm)
-    }, 3000)
   })
 
   const statsCalculator = useStatsCalculator(pomodoroHistory)

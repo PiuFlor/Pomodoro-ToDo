@@ -209,7 +209,7 @@ export default function PomodoroTimer({
               <div className="flex items-center gap-2">
                 <Clock className="h-4 w-4 text-purple-600" />
                 <span className="text-sm text-purple-600 font-medium">
-                  {activeTask.pomodorosCompleted} pomodoros
+                  {activeTask.totalPomodoros} pomodoros
                 </span>
               </div>
               {activeTask.dueDate && (

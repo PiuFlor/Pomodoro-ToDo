@@ -1,40 +1,35 @@
-import { useMemo } from 'react'
+// app/hooks/useStatsCalculator.tsx
+import { useMemo, useCallback } from 'react'
 import { format } from 'date-fns-tz'
 import type { PomodoroRecord } from '../types'
 
 export function useStatsCalculator(pomodoroHistory: PomodoroRecord[]) {
   const timeZone = 'America/Argentina/Buenos_Aires'
 
-  // ✅ Función para convertir fecha UTC a Argentina
-  const utcToArgentinaTime = (date: Date): Date => {
-    // Si la fecha ya está en Argentina, no hacer conversión
+  // ✅ Usar useCallback para funciones estables
+  const utcToArgentinaTime = useCallback((date: Date): Date => {
     if (date.toString().includes('-03') || date.toString().includes('ART')) {
       return date
     }
-    
-    // Convertir de UTC a Argentina (UTC-3)
-    const argentinaOffset = -3 * 60 * 60 * 1000 // -3 horas en milisegundos
+    const argentinaOffset = -3 * 60 * 60 * 1000
     return new Date(date.getTime() + argentinaOffset)
-  }
+  }, [])
 
-  // ✅ Funciones para formatear fechas en zona horaria Argentina
-  const formatArgentinaDate = (date: Date): string => {
+  const formatArgentinaDate = useCallback((date: Date): string => {
     return format(date, 'dd/MM/yyyy', { timeZone })
-  }
+  }, [timeZone])
 
-  const formatArgentinaDateTime = (date: Date): string => {
+  const formatArgentinaDateTime = useCallback((date: Date): string => {
     return format(date, 'dd/MM/yyyy HH:mm', { timeZone })
-  }
+  }, [timeZone])
 
-  const formatArgentinaTime = (date: Date): string => {
+  const formatArgentinaTime = useCallback((date: Date): string => {
     return format(date, 'HH:mm', { timeZone })
-  }
+  }, [timeZone])
 
-  // ✅ Normalización con conversión explícita de UTC a Argentina
+  // ✅ Memoizar la normalización
   const normalizedHistory = useMemo(() => {
     if (!pomodoroHistory || pomodoroHistory.length === 0) return []
-    
-    console.log('🕐 DEBUG - Procesando registros con zona horaria Argentina')
     
     return pomodoroHistory.map(record => {
       try {
@@ -47,19 +42,9 @@ export function useStatsCalculator(pomodoroHistory: PomodoroRecord[]) {
           : new Date(record.startTime)
         
         if (isNaN(endTime.getTime()) || isNaN(startTime.getTime())) {
-          console.warn('Invalid date found in record:', record)
           return null
         }
         
-        // ✅ DEBUG: Ver la diferencia de horas
-        console.log('🕐 Record time debug:', {
-          originalEndTime: endTime.toString(),
-          originalEndTimeISO: endTime.toISOString(),
-          convertedEndTime: utcToArgentinaTime(endTime).toString(),
-          formattedArgentina: formatArgentinaDateTime(utcToArgentinaTime(endTime))
-        })
-        
-        // Convertir de UTC a hora Argentina
         const endTimeArg = utcToArgentinaTime(endTime)
         const startTimeArg = utcToArgentinaTime(startTime)
         
@@ -73,11 +58,11 @@ export function useStatsCalculator(pomodoroHistory: PomodoroRecord[]) {
         return null
       }
     }).filter((record): record is PomodoroRecord => record !== null)
-  }, [pomodoroHistory])
+  }, [pomodoroHistory, utcToArgentinaTime])
 
-  const getStatsForPeriod = (days: number, targetDate?: Date) => {
+  // ✅ Usar useCallback para todas las funciones
+  const getStatsForPeriod = useCallback((days: number, targetDate?: Date) => {
     try {
-      // Crear fechas de referencia en Argentina
       const nowInArgentina = utcToArgentinaTime(new Date())
       const referenceDate = targetDate ? utcToArgentinaTime(targetDate) : nowInArgentina
       
@@ -88,8 +73,6 @@ export function useStatsCalculator(pomodoroHistory: PomodoroRecord[]) {
       const endDate = new Date(referenceDate)
       endDate.setHours(23, 59, 59, 999)
       
-      console.log(`📊 Stats period (Argentina): ${formatArgentinaDateTime(startDate)} to ${formatArgentinaDateTime(endDate)}`)
-      
       const filteredRecords = normalizedHistory.filter(record => 
         record.mode === 'work' && 
         record.completed && 
@@ -97,24 +80,20 @@ export function useStatsCalculator(pomodoroHistory: PomodoroRecord[]) {
         record.endTime <= endDate
       )
       
-      console.log(`📊 Found ${filteredRecords.length} records for period`)
       return filteredRecords
     } catch (error) {
       console.error('Error in getStatsForPeriod:', error)
       return []
     }
-  }
+  }, [normalizedHistory, utcToArgentinaTime])
 
-  const getStatsForMonth = (year: number, month: number) => {
+  const getStatsForMonth = useCallback((year: number, month: number) => {
     try {
-      // Crear fechas en zona horaria Argentina
       const startDate = new Date(year, month, 1, 0, 0, 0, 0)
       const endDate = new Date(year, month + 1, 0, 23, 59, 59, 999)
       
       const startDateArg = utcToArgentinaTime(startDate)
       const endDateArg = utcToArgentinaTime(endDate)
-      
-      console.log(`📅 Month stats (Argentina): ${formatArgentinaDate(startDateArg)} to ${formatArgentinaDate(endDateArg)}`)
       
       const filteredRecords = normalizedHistory.filter(record => 
         record.mode === 'work' && 
@@ -123,20 +102,19 @@ export function useStatsCalculator(pomodoroHistory: PomodoroRecord[]) {
         record.endTime <= endDateArg
       )
       
-      console.log(`📅 Found ${filteredRecords.length} records for month`)
       return filteredRecords
     } catch (error) {
       console.error('Error in getStatsForMonth:', error)
       return []
     }
-  }
+  }, [normalizedHistory, utcToArgentinaTime])
 
-  const getHourlyStats = (records: PomodoroRecord[]) => {
+  const getHourlyStats = useCallback((records: PomodoroRecord[]) => {
     const hourlyData = Array.from({ length: 24 }, (_, i) => ({ hour: i, count: 0 }))
     
     records.forEach(record => {
       if (record.endTime instanceof Date) {
-        const hour = record.endTime.getHours() // ✅ Ya está en hora Argentina
+        const hour = record.endTime.getHours()
         if (hour >= 0 && hour < 24) {
           hourlyData[hour].count++
         }
@@ -144,9 +122,9 @@ export function useStatsCalculator(pomodoroHistory: PomodoroRecord[]) {
     })
     
     return hourlyData
-  }
+  }, [])
 
-  const getDailyStats = (records: PomodoroRecord[]) => {
+  const getDailyStats = useCallback((records: PomodoroRecord[]) => {
     const dayNames = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb']
     const dailyData = Array.from({ length: 7 }, (_, i) => ({ 
       day: dayNames[i], 
@@ -155,7 +133,7 @@ export function useStatsCalculator(pomodoroHistory: PomodoroRecord[]) {
     
     records.forEach(record => {
       if (record.endTime instanceof Date) {
-        const day = record.endTime.getDay() // ✅ Ya está en día Argentina
+        const day = record.endTime.getDay()
         if (day >= 0 && day < 7) {
           dailyData[day].count++
         }
@@ -163,13 +141,13 @@ export function useStatsCalculator(pomodoroHistory: PomodoroRecord[]) {
     })
     
     return dailyData
-  }
+  }, [])
 
-  const getAvailableMonths = () => {
+  const getAvailableMonths = useCallback(() => {
     const months = new Set<string>()
     normalizedHistory.forEach(record => {
       if (record.mode === 'work' && record.completed && record.endTime instanceof Date) {
-        const date = record.endTime // ✅ Ya está en zona horaria Argentina
+        const date = record.endTime
         const key = `${date.getFullYear()}-${date.getMonth()}`
         months.add(key)
       }
@@ -182,22 +160,7 @@ export function useStatsCalculator(pomodoroHistory: PomodoroRecord[]) {
       if (a.year !== b.year) return b.year - a.year
       return b.month - a.month
     })
-  }
-
-  // ✅ Stats adicionales para debugging
-  const getDebugInfo = () => ({
-    totalRecords: pomodoroHistory.length,
-    normalizedRecords: normalizedHistory.length,
-    workRecords: normalizedHistory.filter(r => r.mode === 'work').length,
-    completedWorkRecords: normalizedHistory.filter(r => r.mode === 'work' && r.completed).length,
-    timeZone: timeZone,
-    currentTimeInArgentina: formatArgentinaDateTime(utcToArgentinaTime(new Date())),
-    sampleRecord: normalizedHistory[0] ? {
-      original: pomodoroHistory[0].endTime?.toString(),
-      converted: normalizedHistory[0].endTime.toString(),
-      formatted: formatArgentinaDateTime(normalizedHistory[0].endTime)
-    } : 'No records'
-  })
+  }, [normalizedHistory])
 
   return {
     getStatsForPeriod,
@@ -205,12 +168,9 @@ export function useStatsCalculator(pomodoroHistory: PomodoroRecord[]) {
     getHourlyStats,
     getDailyStats,
     getAvailableMonths,
-    getDebugInfo,
-    // ✅ Nuevas funciones de formato
     formatArgentinaDate,
     formatArgentinaTime,
     formatArgentinaDateTime,
-    // ✅ Exponer datos normalizados para debugging
     normalizedHistory
   }
 }

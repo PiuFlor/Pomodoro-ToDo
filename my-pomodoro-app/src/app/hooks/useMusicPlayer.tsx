@@ -1,5 +1,5 @@
 // app/hooks/useMusicPlayer.ts
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 
 export interface Track {
   id: string
@@ -23,10 +23,11 @@ export function useMusicPlayer() {
   const [volume, setVolume] = useState(0.7)
   const playerRef = useRef<any>(null)
   const containerRef = useRef<HTMLDivElement>(null)
+  const isInitializedRef = useRef(false)
 
   // Cargar YouTube IFrame API
   useEffect(() => {
-    if (!window.YT) {
+    if (!window.YT && !isInitializedRef.current) {
       const tag = document.createElement('script')
       tag.src = 'https://www.youtube.com/iframe_api'
       const firstScriptTag = document.getElementsByTagName('script')[0]
@@ -35,66 +36,98 @@ export function useMusicPlayer() {
       }
 
       window.onYouTubeIframeAPIReady = () => {
+        isInitializedRef.current = true
         if (currentTrack && containerRef.current && !playerRef.current) {
           createPlayer()
         }
       }
     } else if (currentTrack && containerRef.current && !playerRef.current) {
+      isInitializedRef.current = true
       createPlayer()
     }
 
     return () => {
-      if (playerRef.current) {
-        playerRef.current.destroy()
-        playerRef.current = null
+      // No destruir el player completamente, solo pausar
+      if (playerRef.current && typeof playerRef.current.pauseVideo === 'function') {
+        playerRef.current.pauseVideo()
       }
     }
   }, [currentTrack])
 
-  const createPlayer = () => {
+  const createPlayer = useCallback(() => {
     if (!containerRef.current || playerRef.current || !currentTrack) return
 
-    playerRef.current = new window.YT.Player(containerRef.current, {
-      videoId: currentTrack.id,
-      playerVars: {
-        autoplay: 1,
-        controls: 0,
-        disablekb: 1,
-        loop: 1,
-        playlist: currentTrack.id,
-        origin: window.location.origin,
-      },
-      events: {
-        onReady: (e: any) => {
-          e.target.setVolume(volume * 100)
-          setIsPlaying(true)
+    try {
+      playerRef.current = new window.YT.Player(containerRef.current, {
+        videoId: currentTrack.id,
+        playerVars: {
+          autoplay: 1,
+          controls: 0,
+          disablekb: 1,
+          loop: 1,
+          playlist: currentTrack.id,
+          origin: window.location.origin,
         },
-        onStateChange: (e: any) => {
-          if (e.data === window.YT.PlayerState.PLAYING) {
+        events: {
+          onReady: (e: any) => {
+            e.target.setVolume(volume * 100)
             setIsPlaying(true)
-          } else if (e.data === window.YT.PlayerState.PAUSED) {
-            setIsPlaying(false)
+          },
+          onStateChange: (e: any) => {
+            if (e.data === window.YT.PlayerState.PLAYING) {
+              setIsPlaying(true)
+            } else if (e.data === window.YT.PlayerState.PAUSED) {
+              setIsPlaying(false)
+            } else if (e.data === window.YT.PlayerState.ENDED) {
+              // Reiniciar video cuando termine
+              e.target.playVideo()
+            }
+          },
+          onError: (e: any) => {
+            console.error('YouTube Player Error:', e)
           }
         },
-      },
-    })
-  }
+      })
+    } catch (error) {
+      console.error('Error creating YouTube player:', error)
+    }
+  }, [currentTrack, volume])
 
-  const playTrack = (track: Track) => {
+  const playTrack = useCallback((track: Track) => {
+    // Si es el mismo track, solo continuar reproducción
+    if (currentTrack?.id === track.id && playerRef.current) {
+      playerRef.current.playVideo()
+      return
+    }
+
+    // Si hay un player existente, destruirlo primero
+    if (playerRef.current && typeof playerRef.current.destroy === 'function') {
+      try {
+        playerRef.current.destroy()
+      } catch (error) {
+        console.warn('Error destroying previous player:', error)
+      }
+      playerRef.current = null
+    }
+
     setCurrentTrack(track)
-  }
+  }, [currentTrack])
 
-  const togglePlayPause = () => {
+  const togglePlayPause = useCallback(() => {
     if (playerRef.current) {
-      if (isPlaying) {
-        playerRef.current.pauseVideo()
-      } else {
-        playerRef.current.playVideo()
+      try {
+        if (isPlaying) {
+          playerRef.current.pauseVideo()
+        } else {
+          playerRef.current.playVideo()
+        }
+      } catch (error) {
+        console.error('Error toggling play/pause:', error)
       }
     }
-  }
+  }, [isPlaying])
 
-  const setVolumeLocal = (vol: number) => {
+  const setVolumeLocal = useCallback((vol: number) => {
     const volumeValue = Math.max(0, Math.min(100, Math.round(vol * 100)))
     setVolume(vol)
 
@@ -105,19 +138,23 @@ export function useMusicPlayer() {
         console.warn('No se pudo ajustar el volumen del reproductor de YouTube', error)
       }
     }
-  }
+  }, [])
 
-  const seek = (time: number) => {
-    if (playerRef.current) {
-      playerRef.current.seekTo(time)
+  const seek = useCallback((time: number) => {
+    if (playerRef.current && typeof playerRef.current.seekTo === 'function') {
+      try {
+        playerRef.current.seekTo(time, true)
+      } catch (error) {
+        console.warn('Error seeking:', error)
+      }
     }
-  }
+  }, [])
 
-  const formatTime = (seconds: number) => {
+  const formatTime = useCallback((seconds: number) => {
     const mins = Math.floor(seconds / 60)
     const secs = Math.floor(seconds % 60)
     return `${mins}:${secs.toString().padStart(2, '0')}`
-  }
+  }, [])
 
   return {
     currentTrack,
@@ -131,5 +168,6 @@ export function useMusicPlayer() {
     setVolume: setVolumeLocal,
     seek,
     formatTime,
+    playerRef // Exportar para acceso directo si es necesario
   }
 }

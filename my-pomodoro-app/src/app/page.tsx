@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "./components/ui/tabs"
 import { Target, BarChart3 } from 'lucide-react'
 import PomodoroTimer from './components/PomodoroTimer'
@@ -22,7 +22,7 @@ export default function PomodoroTodoApp() {
     toggleTask,
     deleteTask,
     incrementTaskPomodoros,
-    refreshTasks // ✅ Agregamos refresh
+    refreshTasks
   } = useTasksDatabase()
 
   const {
@@ -30,7 +30,7 @@ export default function PomodoroTodoApp() {
     loading: recordsLoading,
     error: recordsError,
     createRecord,
-    refreshRecords // ✅ Agregamos refresh
+    refreshRecords
   } = usePomodoroRecordsDatabase()
 
   const {
@@ -43,6 +43,7 @@ export default function PomodoroTodoApp() {
   const [activeTaskId, setActiveTaskId] = useState<string | null>(null)
   const [musicVolume, setMusicVolume] = useState(0.7)
   const [volumeBeforeAlarm, setVolumeBeforeAlarm] = useState(0.7)
+  const [isAlarmActive, setIsAlarmActive] = useState(false)
 
   const {
     timeLeft,
@@ -57,7 +58,6 @@ export default function PomodoroTodoApp() {
     const activeTask = tasks.find(t => t.id === activeTaskId)
 
     try {
-      // 1. Crear registro en la base de datos
       await createRecord({
         taskId: activeTaskId,
         taskTitle: activeTask?.title || 'Sin tarea',
@@ -67,24 +67,16 @@ export default function PomodoroTodoApp() {
         completed: true
       })
 
-      // 2. Incrementar pomodoros de la tarea activa si es modo trabajo
       if (mode === 'work' && activeTaskId) {
         await incrementTaskPomodoros(activeTaskId)
       }
 
-      // 3. ✅ SOLUCIÓN: Refrescar datos después de todas las operaciones
-      await Promise.all([
-        refreshRecords(), // Recargar registros para estadísticas
-        refreshTasks()    // Recargar tareas para mostrar pomodoros actualizados
-      ])
+      setIsAlarmActive(true)
+      setTimeout(() => setIsAlarmActive(false), 3000)
 
-      // 4. Efectos de sonido
       setVolumeBeforeAlarm(musicVolume)
       setMusicVolume(0.1)
-
-      setTimeout(() => {
-        setMusicVolume(volumeBeforeAlarm)
-      }, 3000)
+      setTimeout(() => setMusicVolume(volumeBeforeAlarm), 3000)
 
     } catch (error) {
       console.error('Error completing pomodoro:', error)
@@ -146,49 +138,56 @@ export default function PomodoroTodoApp() {
       </div>
 
       <div className="max-w-7xl mx-auto px-6 py-8">
-        <Tabs defaultValue="pomodoro" className="space-y-8">
-          <TabsList className="grid w-full grid-cols-2 lg:w-[400px] mx-auto">
-            <TabsTrigger value="pomodoro" className="flex items-center gap-2">
-              <Target className="h-4 w-4" />
-              Pomodoro & Tareas
-            </TabsTrigger>
-            <TabsTrigger value="stats" className="flex items-center gap-2">
-              <BarChart3 className="h-4 w-4" />
-              Estadísticas
-            </TabsTrigger>
-          </TabsList>
+        {/* ✅ MOVER MusicPlayer FUERA de las pestañas */}
+        <div className="grid lg:grid-cols-5 gap-8 mb-8">
+          <div className="lg:col-span-2">
+            <div className="bg-white/60 rounded-2xl p-6 shadow-lg backdrop-blur-sm border border-purple-100 mb-6">
+              <PomodoroTimer
+                timeLeft={timeLeft}
+                isRunning={isRunning}
+                mode={mode}
+                settings={settings}
+                activeTask={activeTask}
+                completedPomodoros={completedPomodoros}
+                completedTasks={completedTasks}
+                todayStats={pomodoroHistory.filter(record => {
+                  const today = new Date()
+                  const recordDate = new Date(record.endTime)
+                  return recordDate.toDateString() === today.toDateString()
+                })}
+                onToggleTimer={toggleTimer}
+                onResetTimer={resetTimer}
+                onSwitchMode={switchMode}
+                onUpdateSettings={setSettings}
+                onTimerComplete={() => {}}
+              />
+            </div>
+            
+            {/* ✅ MusicPlayer ahora está FUERA de las pestañas */}
+            <div className="bg-white/60 rounded-2xl p-6 shadow-lg backdrop-blur-sm border border-indigo-100">
+              <MusicPlayer
+                isTimerRunning={isRunning}
+                isAlarmActive={isAlarmActive}
+                musicVolume={musicVolume}
+                setMusicVolume={setMusicVolume}
+              />
+            </div>
+          </div>
 
-          <TabsContent value="pomodoro">
-            <div className="grid lg:grid-cols-5 gap-8">
-              <div className="lg:col-span-2 space-y-6">
-                <div className="bg-white/60 rounded-2xl p-6 shadow-lg backdrop-blur-sm border border-purple-100">
-                  <PomodoroTimer
-                    timeLeft={timeLeft}
-                    isRunning={isRunning}
-                    mode={mode}
-                    settings={settings}
-                    activeTask={activeTask}
-                    completedPomodoros={completedPomodoros}
-                    completedTasks={completedTasks}
-                    todayStats={statsCalculator.getStatsForPeriod(1)}
-                    onToggleTimer={toggleTimer}
-                    onResetTimer={resetTimer}
-                    onSwitchMode={switchMode}
-                    onUpdateSettings={setSettings}
-                    onTimerComplete={() => {}}
-                  />
-                </div>
+          <div className="lg:col-span-3">
+            <Tabs defaultValue="pomodoro" className="space-y-6">
+              <TabsList className="grid w-full grid-cols-2 lg:w-[400px] mx-auto">
+                <TabsTrigger value="pomodoro" className="flex items-center gap-2">
+                  <Target className="h-4 w-4" />
+                  Tareas
+                </TabsTrigger>
+                <TabsTrigger value="stats" className="flex items-center gap-2">
+                  <BarChart3 className="h-4 w-4" />
+                  Estadísticas
+                </TabsTrigger>
+              </TabsList>
 
-                <div className="bg-white/60 rounded-2xl p-6 shadow-lg backdrop-blur-sm border border-indigo-100">
-                  <MusicPlayer
-                    isTimerRunning={isRunning}
-                    musicVolume={musicVolume}
-                    setMusicVolume={setMusicVolume}
-                  />
-                </div>
-              </div>
-
-              <div className="lg:col-span-3">
+              <TabsContent value="pomodoro" className="m-0">
                 <TaskList
                   pendingTasks={pendingTasks}
                   completedTasks={completedTasks}
@@ -206,23 +205,23 @@ export default function PomodoroTodoApp() {
                     }
                   }}
                   onUpdateTask={async (id, taskData) => {
-                  try {
-                    await updateTask(id, taskData);
-                    return true;
-                  } catch (error) {
-                    console.error('Error updating task:', error);
-                    return false;
-                  }
-                }}
+                    try {
+                      await updateTask(id, taskData);
+                      return true;
+                    } catch (error) {
+                      console.error('Error updating task:', error);
+                      return false;
+                    }
+                  }}
                 />
-              </div>
-            </div>
-          </TabsContent>
+              </TabsContent>
 
-          <TabsContent value="stats">
-            <StatsPanel pomodoroHistory={pomodoroHistory} statsCalculator={statsCalculator} />
-          </TabsContent>
-        </Tabs>
+              <TabsContent value="stats" className="m-0">
+                <StatsPanel pomodoroHistory={pomodoroHistory} statsCalculator={statsCalculator} />
+              </TabsContent>
+            </Tabs>
+          </div>
+        </div>
       </div>
     </div>
   )

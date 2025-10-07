@@ -12,15 +12,18 @@ export function usePomodoroTimer(
   const [currentSessionStart, setCurrentSessionStart] = useState<Date | null>(null)
 
   const intervalRef = useRef<NodeJS.Timeout | null>(null)
+  const isCompletingRef = useRef(false)
 
   useEffect(() => {
     if (isRunning && timeLeft > 0) {
       intervalRef.current = setInterval(() => setTimeLeft(t => t - 1), 1000)
-    } else if (timeLeft === 0) {
+    } else if (timeLeft === 0 && !isCompletingRef.current) {
       if (intervalRef.current) clearInterval(intervalRef.current)
       handleTimerComplete()
     }
-    return () => { if (intervalRef.current) clearInterval(intervalRef.current) }
+    return () => { 
+      if (intervalRef.current) clearInterval(intervalRef.current) 
+    }
   }, [isRunning, timeLeft])
 
   useEffect(() => {
@@ -45,30 +48,41 @@ export function usePomodoroTimer(
   }
 
   const handleTimerComplete = async () => {
+    if (isCompletingRef.current) return
+    isCompletingRef.current = true
+
     const sessionStart = currentSessionStart
     setCurrentSessionStart(null)
 
-    // Llamar al callback con await para manejar la promesa
-    if (onTimerComplete) {
+    // Usar setTimeout para no bloquear y permitir que la música continue
+    setTimeout(async () => {
       try {
-        await onTimerComplete(sessionStart)
+        if (onTimerComplete) {
+          await onTimerComplete(sessionStart)
+        }
+        
+        playAlarmSound()
+
+        // Batch updates para minimizar re-renders
+        if (mode === 'work') {
+          const newCount = completedPomodoros + 1
+          const nextMode = newCount % settings.longBreakInterval === 0 ? 'longBreak' : 'shortBreak'
+          
+          setCompletedPomodoros(newCount)
+          setMode(nextMode)
+          setTimeLeft((nextMode === 'longBreak' ? settings.longBreak : settings.shortBreak) * 60)
+        } else {
+          setMode('work')
+          setTimeLeft(settings.workTime * 60)
+        }
+        
+        setIsRunning(false)
       } catch (error) {
         console.error('Error al completar el temporizador:', error)
+      } finally {
+        isCompletingRef.current = false
       }
-    }
-
-    playAlarmSound()
-
-    if (mode === 'work') {
-      const newCount = completedPomodoros + 1
-      setCompletedPomodoros(newCount)
-      const nextMode = newCount % settings.longBreakInterval === 0 ? 'longBreak' : 'shortBreak'
-      setMode(nextMode)
-      setTimeLeft((nextMode === 'longBreak' ? settings.longBreak : settings.shortBreak) * 60)
-    } else {
-      setMode('work')
-      setTimeLeft(settings.workTime * 60)
-    }
+    }, 100) // Pequeño delay para asegurar que no bloquee la música
   }
 
   const switchMode = (newMode: TimerMode) => {

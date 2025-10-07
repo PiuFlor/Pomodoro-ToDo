@@ -44,12 +44,14 @@ export default function PomodoroTimer({
     return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`
   }
 
-  const getProgressPercentage = () => {
-    const totalTime = mode === 'work' ? settings.workTime : 
-                     mode === 'shortBreak' ? settings.shortBreak : 
-                     settings.longBreak
-    return ((totalTime * 60 - timeLeft) / (totalTime * 60)) * 100
-  }
+  const getProgressDegrees = () => {
+  const totalTime = mode === 'work' ? settings.workTime : 
+                   mode === 'shortBreak' ? settings.shortBreak : 
+                   settings.longBreak
+  const totalSeconds = totalTime * 60
+  const progress = (totalSeconds - timeLeft) / totalSeconds
+  return progress * 360 // Convierte a grados (0-360)
+}
 
   return (
     <Card className="lg:sticky lg:top-24 h-fit shadow-2xl border-0 bg-gradient-to-br from-white to-purple-50/50 backdrop-blur-sm">
@@ -107,7 +109,7 @@ export default function PomodoroTimer({
                 style={{
                   background: `conic-gradient(from 0deg, ${
                     mode === 'work' ? '#8b5cf6' : mode === 'shortBreak' ? '#10b981' : '#3b82f6'
-                  } ${getProgressPercentage()}deg, transparent 0deg)`
+                  } ${getProgressDegrees()}deg, #e5e7eb 0deg)`
                 }}
               ></div>
             </div>

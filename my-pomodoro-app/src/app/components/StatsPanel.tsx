@@ -1,5 +1,5 @@
 // app/components/StatsPanel.tsx
-import { useState } from 'react'
+import { useState, useMemo, memo } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from "@/app/components/ui/card"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/app/components/ui/select"
 import { Badge } from "@/app/components/ui/badge"
@@ -21,22 +21,17 @@ interface StatsPanelProps {
   }
 }
 
-export default function StatsPanel({ pomodoroHistory, statsCalculator }: StatsPanelProps) {
-  console.log('🔍 DEBUG - Primer registro:', pomodoroHistory[0] ? {
-  endTime: pomodoroHistory[0].endTime,
-  endTimeType: typeof pomodoroHistory[0].endTime,
-  endTimeISO: pomodoroHistory[0].endTime?.toISOString(),
-  endTimeLocal: pomodoroHistory[0].endTime?.toString(),
-  endTimeArgentina: format(pomodoroHistory[0].endTime, 'dd/MM/yyyy HH:mm', { timeZone: 'America/Argentina/Buenos_Aires' })
-} : 'No records')
-
+function StatsPanel({ pomodoroHistory, statsCalculator }: StatsPanelProps) {
   const [selectedPeriod, setSelectedPeriod] = useState<string>('current')
   const [selectedMonth, setSelectedMonth] = useState<string>('')
 
-  const availableMonths = statsCalculator.getAvailableMonths()
-  
-  // Configurar el período seleccionado
-  const getCurrentStats = () => {
+  // ✅ Memoizar cálculos pesados
+  const availableMonths = useMemo(() => 
+    statsCalculator.getAvailableMonths(), 
+    [statsCalculator]
+  )
+
+  const currentStats = useMemo(() => {
     if (selectedPeriod === 'current') {
       return {
         today: statsCalculator.getStatsForPeriod(1),
@@ -57,15 +52,32 @@ export default function StatsPanel({ pomodoroHistory, statsCalculator }: StatsPa
       week: [],
       month: []
     }
-  }
+  }, [selectedPeriod, selectedMonth, statsCalculator])
 
-  const currentStats = getCurrentStats()
-  const displayStats = selectedPeriod === 'current' ? currentStats.month : currentStats.today
-  const hourlyStats = statsCalculator.getHourlyStats(displayStats)
-  const dailyStats = statsCalculator.getDailyStats(displayStats)
+  const displayStats = useMemo(() => 
+    selectedPeriod === 'current' ? currentStats.month : currentStats.today,
+    [selectedPeriod, currentStats]
+  )
 
-  const maxHourlyCount = Math.max(...hourlyStats.map(h => h.count), 1)
-  const maxDailyCount = Math.max(...dailyStats.map(d => d.count), 1)
+  const hourlyStats = useMemo(() => 
+    statsCalculator.getHourlyStats(displayStats),
+    [statsCalculator, displayStats]
+  )
+
+  const dailyStats = useMemo(() => 
+    statsCalculator.getDailyStats(displayStats),
+    [statsCalculator, displayStats]
+  )
+
+  const maxHourlyCount = useMemo(() => 
+    Math.max(...hourlyStats.map(h => h.count), 1),
+    [hourlyStats]
+  )
+
+  const maxDailyCount = useMemo(() => 
+    Math.max(...dailyStats.map(d => d.count), 1),
+    [dailyStats]
+  )
 
   const getMonthName = (month: number) => {
     const months = [
@@ -74,6 +86,15 @@ export default function StatsPanel({ pomodoroHistory, statsCalculator }: StatsPa
     ]
     return months[month]
   }
+
+  // ✅ Eliminar console.log de debug en producción
+  // console.log('🔍 DEBUG - Primer registro:', pomodoroHistory[0] ? {
+  //   endTime: pomodoroHistory[0].endTime,
+  //   endTimeType: typeof pomodoroHistory[0].endTime,
+  //   endTimeISO: pomodoroHistory[0].endTime?.toISOString(),
+  //   endTimeLocal: pomodoroHistory[0].endTime?.toString(),
+  //   endTimeArgentina: format(pomodoroHistory[0].endTime, 'dd/MM/yyyy HH:mm', { timeZone: 'America/Argentina/Buenos_Aires' })
+  // } : 'No records')
 
   return (
     <div className="space-y-8">
@@ -279,3 +300,6 @@ export default function StatsPanel({ pomodoroHistory, statsCalculator }: StatsPa
     </div>
   )
 }
+
+// ✅ Envolver con React.memo para evitar re-renders innecesarios
+export default memo(StatsPanel)

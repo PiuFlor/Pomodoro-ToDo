@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, memo } from 'react' // ✅ Agregar memo
 import { Button } from "@/app/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/app/components/ui/card"
 import { Input } from "@/app/components/ui/input"
@@ -18,7 +18,8 @@ interface MusicPlayerProps {
   setMusicVolume: (volume: number) => void
 }
 
-export default function MusicPlayer({
+// ✅ Cambiar a función nombrada para mejor debugging
+function MusicPlayerComponent({
   isTimerRunning = false,
   isAlarmActive = false,
   musicVolume,
@@ -333,3 +334,6 @@ export default function MusicPlayer({
     </>
   )
 }
+
+
+export default memo(MusicPlayerComponent)

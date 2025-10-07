@@ -2,12 +2,12 @@ import { Button } from "@/app/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/app/components/ui/card"
 import { Badge } from "@/app/components/ui/badge"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/app/components/ui/dialog"
-import { Play, Pause, RotateCcw, Settings, Target, Clock, Calendar, ChevronUp, ChevronDown } from 'lucide-react' 
-import { AnimatePresence, motion } from 'framer-motion'
+import { Play, Pause, RotateCcw, Settings, Target, Clock, Calendar, ChevronUp, ChevronDown, SkipForward } from 'lucide-react' // ✅ Agregar SkipForward
 import SettingsForm from './SettingsForm'
 import PriorityBadge from './PriorityBadge'
 import type { Task, PomodoroSettings, TimerMode, PomodoroRecord } from '../types'
-import { useState } from 'react' 
+import { useState } from 'react'
+import { motion, AnimatePresence } from 'framer-motion'
 
 interface PomodoroTimerProps {
   timeLeft: number
@@ -23,6 +23,7 @@ interface PomodoroTimerProps {
   onSwitchMode: (mode: TimerMode) => void
   onUpdateSettings: (settings: PomodoroSettings) => void
   onTimerComplete: (sessionStart: Date | null) => void
+  onSkipBreak: () => void
 }
 
 export default function PomodoroTimer({
@@ -38,9 +39,10 @@ export default function PomodoroTimer({
   onResetTimer,
   onSwitchMode,
   onUpdateSettings,
-  onTimerComplete
+  onTimerComplete,
+  onSkipBreak
 }: PomodoroTimerProps) {
-  const [isExpanded, setIsExpanded] = useState(true) // ✅ Estado para controlar expansión
+  const [isExpanded, setIsExpanded] = useState(true)
 
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60)
@@ -56,6 +58,16 @@ export default function PomodoroTimer({
     const progress = (totalSeconds - timeLeft) / totalSeconds
     return progress * 360
   }
+
+  // ✅ Función para saltar el descanso
+  const skipBreak = () => {
+    if (mode === 'shortBreak' || mode === 'longBreak') {
+      onSwitchMode('work')
+    }
+  }
+
+  // ✅ Determinar si mostrar el botón Saltar (solo en descansos)
+  const showSkipButton = mode === 'shortBreak' || mode === 'longBreak'
 
   return (
     <Card className="lg:sticky lg:top-24 h-fit shadow-2xl border-0 bg-gradient-to-br from-white to-purple-50/50 backdrop-blur-sm">
@@ -93,7 +105,6 @@ export default function PomodoroTimer({
               </DialogContent>
             </Dialog>
             
-            {/* ✅ Flecha para desplegar/contraer */}
             <Button
               variant="ghost"
               size="icon"
@@ -190,37 +201,52 @@ export default function PomodoroTimer({
                 </div>
 
                 {/* Controles del temporizador */}
-                <div className="flex justify-center gap-4">
-                  <Button
-                    onClick={onToggleTimer}
-                    size="lg"
-                    className={`rounded-full px-8 py-4 font-bold text-lg shadow-xl transition-all transform hover:scale-105 ${
-                      isRunning 
-                        ? 'bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700' 
-                        : 'bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700'
-                    }`}
-                  >
-                    {isRunning ? (
-                      <>
-                        <Pause className="h-5 w-5 mr-2" />
-                        Pausar
-                      </>
-                    ) : (
-                      <>
-                        <Play className="h-5 w-5 mr-2" />
-                        Iniciar
-                      </>
-                    )}
-                  </Button>
-                  <Button 
-                    onClick={onResetTimer} 
-                    variant="outline" 
-                    size="lg"
-                    className="rounded-full px-6 py-4 font-medium shadow-lg hover:shadow-xl transition-all border-2"
-                  >
-                    <RotateCcw className="h-5 w-5 mr-2" />
-                    Reiniciar
-                  </Button>
+                <div className={`flex justify-center gap-4 ${showSkipButton ? 'flex-col items-center' : ''}`}>
+                  <div className="flex justify-center gap-4">
+                    <Button
+                      onClick={onToggleTimer}
+                      size="lg"
+                      className={`rounded-full px-8 py-4 font-bold text-lg shadow-xl transition-all transform hover:scale-105 ${
+                        isRunning 
+                          ? 'bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700' 
+                          : 'bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700'
+                      }`}
+                    >
+                      {isRunning ? (
+                        <>
+                          <Pause className="h-5 w-5 mr-2" />
+                          Pausar
+                        </>
+                      ) : (
+                        <>
+                          <Play className="h-5 w-5 mr-2" />
+                          Iniciar
+                        </>
+                      )}
+                    </Button>
+                    <Button 
+                      onClick={onResetTimer} 
+                      variant="outline" 
+                      size="lg"
+                      className="rounded-full px-6 py-4 font-medium shadow-lg hover:shadow-xl transition-all border-2"
+                    >
+                      <RotateCcw className="h-5 w-5 mr-2" />
+                      Reiniciar
+                    </Button>
+                  </div>
+                  
+                  {/* Botón Saltar - Solo aparece en descansos */}
+                  {showSkipButton && (
+                    <Button 
+                      onClick={onSkipBreak}
+                      size="lg"
+                      variant="outline"
+                      className="rounded-full px-8 py-4 font-bold text-lg border-2 border-orange-500 text-orange-600 hover:bg-orange-50 hover:text-orange-700 hover:border-orange-600 transition-all transform hover:scale-105"
+                    >
+                      <SkipForward className="h-5 w-5 mr-2" />
+                      Saltar Descanso
+                    </Button>
+                  )}
                 </div>
               </div>
 
@@ -274,7 +300,7 @@ export default function PomodoroTimer({
         )}
       </AnimatePresence>
       
-      {/* ✅ Estado contraído con animación */}
+      {/* ✅ Estado contraído con animación - TAMBIÉN CON BOTÓN SALTAR */}
       <AnimatePresence initial={false}>
         {!isExpanded && (
           <motion.div
@@ -297,7 +323,7 @@ export default function PomodoroTimer({
                 </div>
               </div>
               
-              <div className="flex justify-center gap-2">
+              <div className="flex justify-center gap-2 mb-3">
                 <Button
                   onClick={onToggleTimer}
                   size="sm"
@@ -317,6 +343,18 @@ export default function PomodoroTimer({
                 >
                   <RotateCcw className="h-4 w-4" />
                 </Button>
+                
+                {/* ✅ Botón Saltar en estado contraído */}
+                {showSkipButton && (
+                  <Button 
+                    onClick={skipBreak}
+                    size="sm"
+                    variant="outline"
+                    className="rounded-full border-orange-500 text-orange-600 hover:bg-orange-50"
+                  >
+                    <SkipForward className="h-4 w-4" />
+                  </Button>
+                )}
               </div>
               
               {activeTask && (
@@ -334,4 +372,5 @@ export default function PomodoroTimer({
         )}
       </AnimatePresence>
     </Card>
-  )}
+  )
+}

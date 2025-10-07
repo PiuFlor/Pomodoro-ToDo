@@ -14,31 +14,61 @@ export function usePomodoroTimer(
   const intervalRef = useRef<NodeJS.Timeout | null>(null)
   const isCompletingRef = useRef(false)
 
+  // ✅ CORREGIDO: Timer principal
   useEffect(() => {
     if (isRunning && timeLeft > 0) {
-      intervalRef.current = setInterval(() => setTimeLeft(t => t - 1), 1000)
-    } else if (timeLeft === 0 && !isCompletingRef.current) {
-      if (intervalRef.current) clearInterval(intervalRef.current)
-      handleTimerComplete()
+      intervalRef.current = setInterval(() => {
+        setTimeLeft(t => {
+          if (t <= 1) {
+            if (intervalRef.current) clearInterval(intervalRef.current)
+            handleTimerComplete()
+            return 0
+          }
+          return t - 1
+        })
+      }, 1000)
+    } else if (!isRunning && intervalRef.current) {
+      clearInterval(intervalRef.current)
+      intervalRef.current = null
     }
-    return () => { 
-      if (intervalRef.current) clearInterval(intervalRef.current) 
+
+    return () => {
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current)
+        intervalRef.current = null
+      }
     }
   }, [isRunning, timeLeft])
 
+  // ✅ CORREGIDO: Solo resetear cuando cambia el modo o settings
   useEffect(() => {
     if (!isRunning) {
-      const time = mode === 'work' ? settings.workTime :
-                  mode === 'shortBreak' ? settings.shortBreak : settings.longBreak
-      setTimeLeft(time * 60)
+      const expectedTime = mode === 'work' ? settings.workTime * 60 :
+                          mode === 'shortBreak' ? settings.shortBreak * 60 : 
+                          settings.longBreak * 60
+      
+      // Solo resetear si estamos en el tiempo completo (no pausado a medio camino)
+      if (timeLeft === expectedTime) {
+        // No hacer nada, ya está en el tiempo correcto
+      }
     }
-  }, [settings, mode, isRunning])
+  }, [settings, mode])
 
+  // ✅ CORREGIDO: Función toggleTimer que solo pausa/reanuda
   const toggleTimer = () => {
-    if (!isRunning && mode === 'work') setCurrentSessionStart(new Date())
-    setIsRunning(!isRunning)
+    if (!isRunning) {
+      // Iniciar timer
+      if (mode === 'work' && !currentSessionStart) {
+        setCurrentSessionStart(new Date())
+      }
+      setIsRunning(true)
+    } else {
+      // Pausar timer - NO modificar timeLeft
+      setIsRunning(false)
+    }
   }
 
+  // ✅ CORREGIDO: Reset reinicia completamente
   const resetTimer = () => {
     setIsRunning(false)
     setCurrentSessionStart(null)
@@ -53,8 +83,8 @@ export function usePomodoroTimer(
 
     const sessionStart = currentSessionStart
     setCurrentSessionStart(null)
+    setIsRunning(false)
 
-    // Usar setTimeout para no bloquear y permitir que la música continue
     setTimeout(async () => {
       try {
         if (onTimerComplete) {
@@ -63,7 +93,6 @@ export function usePomodoroTimer(
         
         playAlarmSound()
 
-        // Batch updates para minimizar re-renders
         if (mode === 'work') {
           const newCount = completedPomodoros + 1
           const nextMode = newCount % settings.longBreakInterval === 0 ? 'longBreak' : 'shortBreak'
@@ -75,14 +104,12 @@ export function usePomodoroTimer(
           setMode('work')
           setTimeLeft(settings.workTime * 60)
         }
-        
-        setIsRunning(false)
       } catch (error) {
         console.error('Error al completar el temporizador:', error)
       } finally {
         isCompletingRef.current = false
       }
-    }, 100) // Pequeño delay para asegurar que no bloquee la música
+    }, 100)
   }
 
   const switchMode = (newMode: TimerMode) => {
@@ -92,6 +119,16 @@ export function usePomodoroTimer(
     const time = newMode === 'work' ? settings.workTime :
                 newMode === 'shortBreak' ? settings.shortBreak : settings.longBreak
     setTimeLeft(time * 60)
+  }
+
+  // ✅ Función para saltar descanso
+  const skipBreak = () => {
+    if (mode === 'shortBreak' || mode === 'longBreak') {
+      setIsRunning(false)
+      setCurrentSessionStart(null)
+      setMode('work')
+      setTimeLeft(settings.workTime * 60)
+    }
   }
 
   const playAlarmSound = () => {
@@ -107,5 +144,14 @@ export function usePomodoroTimer(
     } catch (e) { console.warn('Alarma no reproducida', e) }
   }
 
-  return { timeLeft, isRunning, mode, completedPomodoros, toggleTimer, resetTimer, switchMode }
+  return { 
+    timeLeft, 
+    isRunning, 
+    mode, 
+    completedPomodoros, 
+    toggleTimer, 
+    resetTimer, 
+    switchMode,
+    skipBreak
+  }
 }

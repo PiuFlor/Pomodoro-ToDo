@@ -1,4 +1,3 @@
-// app/hooks/useStatsCalculator.tsx
 import { useMemo, useCallback } from 'react'
 import { format } from 'date-fns-tz'
 import type { PomodoroRecord } from '../types'
@@ -6,7 +5,7 @@ import type { PomodoroRecord } from '../types'
 export function useStatsCalculator(pomodoroHistory: PomodoroRecord[]) {
   const timeZone = 'America/Argentina/Buenos_Aires'
 
-  // ✅ Usar useCallback para funciones estables
+  // Usar useCallback para funciones estables
   const utcToArgentinaTime = useCallback((date: Date): Date => {
     if (date.toString().includes('-03') || date.toString().includes('ART')) {
       return date
@@ -27,7 +26,7 @@ export function useStatsCalculator(pomodoroHistory: PomodoroRecord[]) {
     return format(date, 'HH:mm', { timeZone })
   }, [timeZone])
 
-  // ✅ Memoizar la normalización
+  // Memoizar la normalización
   const normalizedHistory = useMemo(() => {
     if (!pomodoroHistory || pomodoroHistory.length === 0) return []
     
@@ -60,7 +59,7 @@ export function useStatsCalculator(pomodoroHistory: PomodoroRecord[]) {
     }).filter((record): record is PomodoroRecord => record !== null)
   }, [pomodoroHistory, utcToArgentinaTime])
 
-  // ✅ Usar useCallback para todas las funciones
+  // Usar useCallback para todas las funciones
   const getStatsForPeriod = useCallback((days: number, targetDate?: Date) => {
     try {
       const nowInArgentina = utcToArgentinaTime(new Date())

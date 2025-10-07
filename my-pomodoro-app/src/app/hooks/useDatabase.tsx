@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react'
 import type { Task, PomodoroRecord, PomodoroSettings, TaskFormData, TimerMode } from '../types'
 
-// Hook para manejar tareas con base de datos
 export function useTasksDatabase() {
   const [tasks, setTasks] = useState<Task[]>([])
   const [loading, setLoading] = useState(true)
@@ -45,7 +44,7 @@ export function useTasksDatabase() {
     }
   }
 
-  // En useDatabase.tsx - modificar la función updateTask
+  // En useDatabase.tsx
 const updateTask = async (id: string, taskData: Partial<Task>): Promise<boolean> => {
   try {
     const response = await fetch(`/api/tasks/${id}`, {
@@ -66,7 +65,6 @@ const updateTask = async (id: string, taskData: Partial<Task>): Promise<boolean>
   }
 }
 
-  // Toggle completado
   const toggleTask = async (id: string) => {
     try {
       const response = await fetch(`/api/tasks/${id}`, {
@@ -161,7 +159,7 @@ export function usePomodoroRecordsDatabase() {
       if (!response.ok) throw new Error('Failed to fetch records')
       const data: PomodoroRecord[] = await response.json()
 
-      // ✅ Normalizar fechas y crear nueva referencia
+      // Normalizar fechas y crear nueva referencia
       const normalizedRecords = data.map(record => ({
         ...record,
         endTime: typeof record.endTime === 'string' ? new Date(record.endTime) : record.endTime,
@@ -198,14 +196,14 @@ export function usePomodoroRecordsDatabase() {
       
       const newRecord = await response.json()
       
-      // ✅ Normalizar fechas del nuevo registro
+      // Normalizar fechas del nuevo registro
       const normalizedRecord = {
         ...newRecord,
         endTime: typeof newRecord.endTime === 'string' ? new Date(newRecord.endTime) : newRecord.endTime,
         startTime: typeof newRecord.startTime === 'string' ? new Date(newRecord.startTime) : newRecord.startTime
       }
       
-      // ✅ Actualizar estado local inmediatamente
+      // Actualizar estado local inmediatamente
       setRecords(prev => [normalizedRecord, ...prev])
       return normalizedRecord
     } catch (err) {

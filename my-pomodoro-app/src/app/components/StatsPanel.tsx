@@ -1,4 +1,3 @@
-// app/components/StatsPanel.tsx
 import { useState, useMemo, memo } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from "@/app/components/ui/card"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/app/components/ui/select"
@@ -25,7 +24,7 @@ function StatsPanel({ pomodoroHistory, statsCalculator }: StatsPanelProps) {
   const [selectedPeriod, setSelectedPeriod] = useState<string>('current')
   const [selectedMonth, setSelectedMonth] = useState<string>('')
 
-  // ✅ Memoizar cálculos pesados
+  // Memorizar cálculos pesados
   const availableMonths = useMemo(() => 
     statsCalculator.getAvailableMonths(), 
     [statsCalculator]
@@ -87,14 +86,6 @@ function StatsPanel({ pomodoroHistory, statsCalculator }: StatsPanelProps) {
     return months[month]
   }
 
-  // ✅ Eliminar console.log de debug en producción
-  // console.log('🔍 DEBUG - Primer registro:', pomodoroHistory[0] ? {
-  //   endTime: pomodoroHistory[0].endTime,
-  //   endTimeType: typeof pomodoroHistory[0].endTime,
-  //   endTimeISO: pomodoroHistory[0].endTime?.toISOString(),
-  //   endTimeLocal: pomodoroHistory[0].endTime?.toString(),
-  //   endTimeArgentina: format(pomodoroHistory[0].endTime, 'dd/MM/yyyy HH:mm', { timeZone: 'America/Argentina/Buenos_Aires' })
-  // } : 'No records')
 
   return (
     <div className="space-y-8">
@@ -301,5 +292,4 @@ function StatsPanel({ pomodoroHistory, statsCalculator }: StatsPanelProps) {
   )
 }
 
-// ✅ Envolver con React.memo para evitar re-renders innecesarios
 export default memo(StatsPanel)

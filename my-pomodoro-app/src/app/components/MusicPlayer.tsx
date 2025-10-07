@@ -1,4 +1,4 @@
-import { useState, useEffect, memo } from 'react' // ✅ Agregar memo
+import { useState, useEffect, memo } from 'react' 
 import { Button } from "@/app/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/app/components/ui/card"
 import { Input } from "@/app/components/ui/input"
@@ -18,7 +18,6 @@ interface MusicPlayerProps {
   setMusicVolume: (volume: number) => void
 }
 
-// ✅ Cambiar a función nombrada para mejor debugging
 function MusicPlayerComponent({
   isTimerRunning = false,
   isAlarmActive = false,

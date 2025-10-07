@@ -1,4 +1,3 @@
-// app/hooks/useYouTubeSearch.ts
 import { useState } from 'react'
 import type { Track } from './useMusicPlayer'
 
@@ -102,17 +101,17 @@ export function useYouTubeSearch() {
         `https://www.googleapis.com/youtube/v3/videos?part=snippet,contentDetails&chart=mostPopular&maxResults=6&videoCategoryId=10&regionCode=US&key=${API_KEY}`
       )
       
-      // ✅ Verificar si la respuesta es OK
+      // Verificar si la respuesta es OK
       if (!response.ok) {
         throw new Error(`YouTube API error: ${response.status} ${response.statusText}`)
       }
       
       const data = await response.json()
 
-      // ✅ DEBUG: Ver qué responde la API
+      // DEBUG: Ver qué responde la API
       console.log('YouTube API Response:', data)
 
-      // ✅ Validación robusta
+      // Validación robusta
       if (!data.items || !Array.isArray(data.items) || data.items.length === 0) {
         console.warn('No items found in YouTube API response')
         setSearchResults([])

@@ -51,7 +51,6 @@ export default function TaskList({
 
   const handleUpdateTask = async () => {
   if (editingTask) {
-    // Convertir Task a TaskFormData para la actualización
     const taskFormData: TaskFormData = {
       title: editingTask.title,
       description: editingTask.description,

@@ -1,3 +1,5 @@
+//hooks en desuso es para LocalStorage
+
 import { useState, useEffect } from 'react'
 import type { Task, TaskFormData } from '../types'
 

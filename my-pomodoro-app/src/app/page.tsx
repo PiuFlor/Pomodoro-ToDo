@@ -52,7 +52,8 @@ export default function PomodoroTodoApp() {
     completedPomodoros,
     toggleTimer,
     resetTimer,
-    switchMode
+    switchMode,
+    skipBreak 
   } = usePomodoroTimer(settings, async (currentSessionStart) => {
     const endTime = new Date()
     const activeTask = tasks.find(t => t.id === activeTaskId)
@@ -160,6 +161,7 @@ export default function PomodoroTodoApp() {
                 onSwitchMode={switchMode}
                 onUpdateSettings={setSettings}
                 onTimerComplete={() => {}}
+                onSkipBreak={skipBreak}
               />
             </div>
             

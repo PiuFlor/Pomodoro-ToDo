@@ -4,13 +4,12 @@ import type { TaskFormData } from '../../../types'
 
 export const dynamic = 'force-dynamic'
 
-// ✅ CORREGIDO: Usar generateStaticParams o await params
 export async function PUT(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> } // ✅ params es una Promise
+  { params }: { params: Promise<{ id: string }> } 
 ) {
   try {
-    const { id } = await params // ✅ AWAIT los params
+    const { id } = await params 
     const body = await request.json()
     
     console.log(`🔄 PUT /api/tasks/${id}`, body)
@@ -45,7 +44,7 @@ export async function PUT(
     
     return NextResponse.json(task)
   } catch (error) {
-    const { id } = await params // ✅ AWAIT también en el catch
+    const { id } = await params 
     console.error(`❌ PUT /api/tasks/${id} error:`, error)
     return NextResponse.json(
       { error: 'Failed to update task' },
@@ -56,7 +55,7 @@ export async function PUT(
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> } // ✅ params es una Promise
+  { params }: { params: Promise<{ id: string }> } 
 ) {
   try {
     const { id } = await params // ✅ AWAIT los params
@@ -69,7 +68,7 @@ export async function DELETE(
       message: 'Task deleted successfully' 
     })
   } catch (error) {
-    const { id } = await params // ✅ AWAIT también en el catch
+    const { id } = await params 
     console.error(`❌ DELETE /api/tasks/${id} error:`, error)
     return NextResponse.json(
       { error: 'Failed to delete task' },

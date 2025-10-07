@@ -1,4 +1,3 @@
-// app/hooks/useMusicPlayer.ts
 import { useState, useEffect, useRef, useCallback } from 'react'
 
 export interface Track {
@@ -79,7 +78,7 @@ export function useMusicPlayer() {
             } else if (e.data === window.YT.PlayerState.PAUSED) {
               setIsPlaying(false)
             } else if (e.data === window.YT.PlayerState.ENDED) {
-              // Reiniciar video cuando termine
+
               e.target.playVideo()
             }
           },
@@ -168,6 +167,6 @@ export function useMusicPlayer() {
     setVolume: setVolumeLocal,
     seek,
     formatTime,
-    playerRef // Exportar para acceso directo si es necesario
+    playerRef 
   }
 }

@@ -13,7 +13,7 @@ interface TaskListProps {
   completedTasks: Task[]
   activeTaskId: string | null
   onAddTask: (taskData: TaskFormData) => Promise<boolean>  // ← Cambiado a Promise<boolean>
-  onUpdateTask: (task: Task) => Promise<boolean>           // ← Cambiado a Promise<boolean>
+  onUpdateTask: (id: string, taskData: TaskFormData) => Promise<boolean>            // ← Cambiado a Promise<boolean>
   onToggleTask: (id: string) => void
   onDeleteTask: (id: string) => void
   onSelectActiveTask: (id: string) => void
@@ -50,14 +50,22 @@ export default function TaskList({
   }
 
   const handleUpdateTask = async () => {
-    if (editingTask) {
-      const success = await onUpdateTask(editingTask);
-      if (success) {
-        setEditingTask(null)
-        setIsEditTaskOpen(false)
-      }
+  if (editingTask) {
+    // Convertir Task a TaskFormData para la actualización
+    const taskFormData: TaskFormData = {
+      title: editingTask.title,
+      description: editingTask.description,
+      dueDate: editingTask.dueDate || '',
+      priority: editingTask.priority
+    }
+    
+    const success = await onUpdateTask(editingTask.id, taskFormData);
+    if (success) {
+      setEditingTask(null)
+      setIsEditTaskOpen(false)
     }
   }
+}
 
   const openEditTask = (task: Task) => {
     setEditingTask({ ...task })

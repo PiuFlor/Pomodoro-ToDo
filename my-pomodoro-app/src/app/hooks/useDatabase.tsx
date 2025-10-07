@@ -45,26 +45,26 @@ export function useTasksDatabase() {
     }
   }
 
-  // Actualizar tarea
-  const updateTask = async (id: string, taskData: TaskFormData): Promise<boolean> => {
-    try {
-      const response = await fetch(`/api/tasks/${id}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(taskData)
-      })
-      
-      if (!response.ok) throw new Error('Failed to update task')
-      
-      const updatedTask = await response.json()
-      setTasks(prev => prev.map(task => task.id === id ? updatedTask : task))
-      return true
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Unknown error')
-      console.error('Error updating task:', err)
-      return false
-    }
+  // En useDatabase.tsx - modificar la función updateTask
+const updateTask = async (id: string, taskData: Partial<Task>): Promise<boolean> => {
+  try {
+    const response = await fetch(`/api/tasks/${id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(taskData)
+    })
+    
+    if (!response.ok) throw new Error('Failed to update task')
+    
+    const updatedTask = await response.json()
+    setTasks(prev => prev.map(task => task.id === id ? updatedTask : task))
+    return true
+  } catch (err) {
+    setError(err instanceof Error ? err.message : 'Unknown error')
+    console.error('Error updating task:', err)
+    return false
   }
+}
 
   // Toggle completado
   const toggleTask = async (id: string) => {
@@ -87,19 +87,28 @@ export function useTasksDatabase() {
 
   // Eliminar tarea
   const deleteTask = async (id: string) => {
-    try {
-      const response = await fetch(`/api/tasks/${id}`, {
-        method: 'DELETE'
-      })
-      
-      if (!response.ok) throw new Error('Failed to delete task')
-      
-      setTasks(prev => prev.filter(task => task.id !== id))
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Unknown error')
-      console.error('Error deleting task:', err)
+  try {
+    console.log('Deleting task with ID:', id)
+    
+    const response = await fetch(`/api/tasks/${id}`, {
+      method: 'DELETE'
+    })
+    
+    console.log('Delete response status:', response.status)
+    
+    if (!response.ok) {
+      const errorText = await response.text()
+      console.error('Delete error response:', errorText)
+      throw new Error(`Failed to delete task: ${response.status} ${response.statusText}`)
     }
+    
+    setTasks(prev => prev.filter(task => task.id !== id))
+    console.log('Task deleted successfully')
+  } catch (err) {
+    setError(err instanceof Error ? err.message : 'Unknown error')
+    console.error('Error deleting task:', err)
   }
+}
 
   // Incrementar pomodoros
   const incrementTaskPomodoros = async (id: string) => {

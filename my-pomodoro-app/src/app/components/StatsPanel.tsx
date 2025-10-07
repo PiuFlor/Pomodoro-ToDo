@@ -5,6 +5,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/app/components/ui/badge"
 import { Clock, Calendar, TrendingUp } from 'lucide-react'
 import type { PomodoroRecord } from '../types'
+import { format } from 'date-fns-tz'
 
 interface StatsPanelProps {
   pomodoroHistory: PomodoroRecord[]
@@ -14,10 +15,21 @@ interface StatsPanelProps {
     getHourlyStats: (records: PomodoroRecord[]) => { hour: number; count: number }[]
     getDailyStats: (records: PomodoroRecord[]) => { day: string; count: number }[]
     getAvailableMonths: () => { year: number; month: number }[]
+    formatArgentinaDate: (date: Date) => string
+    formatArgentinaTime: (date: Date) => string
+    formatArgentinaDateTime: (date: Date) => string
   }
 }
 
 export default function StatsPanel({ pomodoroHistory, statsCalculator }: StatsPanelProps) {
+  console.log('🔍 DEBUG - Primer registro:', pomodoroHistory[0] ? {
+  endTime: pomodoroHistory[0].endTime,
+  endTimeType: typeof pomodoroHistory[0].endTime,
+  endTimeISO: pomodoroHistory[0].endTime?.toISOString(),
+  endTimeLocal: pomodoroHistory[0].endTime?.toString(),
+  endTimeArgentina: format(pomodoroHistory[0].endTime, 'dd/MM/yyyy HH:mm', { timeZone: 'America/Argentina/Buenos_Aires' })
+} : 'No records')
+
   const [selectedPeriod, setSelectedPeriod] = useState<string>('current')
   const [selectedMonth, setSelectedMonth] = useState<string>('')
 
@@ -252,14 +264,7 @@ export default function StatsPanel({ pomodoroHistory, statsCalculator }: StatsPa
                     <div>
                       <div className="font-medium text-gray-800">{record.taskTitle}</div>
                       <div className="text-sm text-gray-600">
-                        {/* ✅ Convertir a Date si es necesario */}
-                        {new Date(record.endTime).toLocaleDateString('es-ES', {
-                          day: 'numeric',
-                          month: 'short',
-                          year: selectedPeriod === 'historical' ? 'numeric' : undefined,
-                          hour: '2-digit',
-                          minute: '2-digit'
-                        })}
+                        {statsCalculator.formatArgentinaDateTime(record.endTime)}
                       </div>
                     </div>
                     <Badge className="bg-purple-100 text-purple-800">

@@ -126,11 +126,11 @@ export default function TaskItem({
           
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
-              {task.pomodorosCompleted > 0 && (
+              {task.totalPomodoros > 0 && (
                 <div className="flex items-center gap-1">
                   <Clock className="h-4 w-4 text-purple-500" />
                   <span className="text-sm text-purple-600 font-medium">
-                    {task.pomodorosCompleted} pomodoros
+                    {task.totalPomodoros} pomodoros
                   </span>
                 </div>
               )}

@@ -205,12 +205,9 @@ export default function PomodoroTodoApp() {
                       return false;
                     }
                   }}
-                  onUpdateTask={async (task) => {
+                  onUpdateTask={async (id, taskData) => {
                   try {
-                    await updateTask(task.id, { 
-                      ...task, 
-                      dueDate: task.dueDate ?? "" // Ensure dueDate is a string
-                    });
+                    await updateTask(id, taskData);
                     return true;
                   } catch (error) {
                     console.error('Error updating task:', error);

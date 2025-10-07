@@ -3,21 +3,26 @@ import { updateTask, deleteTask, toggleTaskCompletion, incrementTaskPomodoros } 
 import type { TaskFormData } from '../../../types'
 
 export const dynamic = 'force-dynamic'
+
+// ✅ CORREGIDO: Usar generateStaticParams o await params
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> } // ✅ params es una Promise
 ) {
   try {
+    const { id } = await params // ✅ AWAIT los params
     const body = await request.json()
+    
+    console.log(`🔄 PUT /api/tasks/${id}`, body)
     
     // Si es una acción específica
     if (body.action === 'toggle') {
-      const task = await toggleTaskCompletion(params.id)
+      const task = await toggleTaskCompletion(id)
       return NextResponse.json(task)
     }
     
     if (body.action === 'increment-pomodoros') {
-      const task = await incrementTaskPomodoros(params.id)
+      const task = await incrementTaskPomodoros(id)
       return NextResponse.json(task)
     }
     
@@ -31,7 +36,7 @@ export async function PUT(
       )
     }
     
-    const task = await updateTask(params.id, {
+    const task = await updateTask(id, {
       title: taskData.title.trim(),
       description: taskData.description?.trim() || '',
       dueDate: taskData.dueDate || null,
@@ -40,7 +45,8 @@ export async function PUT(
     
     return NextResponse.json(task)
   } catch (error) {
-    console.error(`PUT /api/tasks/${params.id} error:`, error)
+    const { id } = await params // ✅ AWAIT también en el catch
+    console.error(`❌ PUT /api/tasks/${id} error:`, error)
     return NextResponse.json(
       { error: 'Failed to update task' },
       { status: 500 }
@@ -50,16 +56,25 @@ export async function PUT(
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> } // ✅ params es una Promise
 ) {
   try {
-    await deleteTask(params.id)
-    return NextResponse.json({ success: true })
+    const { id } = await params // ✅ AWAIT los params
+    console.log(`🗑️ DELETE /api/tasks/${id}`)
+    
+    await deleteTask(id)
+    
+    return NextResponse.json({ 
+      success: true, 
+      message: 'Task deleted successfully' 
+    })
   } catch (error) {
-    console.error(`DELETE /api/tasks/${params.id} error:`, error)
+    const { id } = await params // ✅ AWAIT también en el catch
+    console.error(`❌ DELETE /api/tasks/${id} error:`, error)
     return NextResponse.json(
       { error: 'Failed to delete task' },
       { status: 500 }
     )
   }
 }
+

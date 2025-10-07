@@ -30,9 +30,10 @@ export async function getTasks(): Promise<Task[]> {
       id: row.id,
       title: row.title,
       description: row.description || '',
-      dueDate: row.due_date ? row.due_date.toISOString().split('T')[0] : null,
+      dueDate: row.due_date ? new Date(row.due_date).toISOString().split('T')[0] : null,
       priority: row.priority as Priority,
       completed: row.completed,
+      pomodorosCompleted: row.total_pomodoros, // ✅ Corregido: era totalPomodoros
       totalPomodoros: row.total_pomodoros,
       createdAt: new Date(row.created_at),
       updatedAt: new Date(row.updated_at)
@@ -66,7 +67,7 @@ export async function createTask(taskData: {
       id: row.id,
       title: row.title,
       description: row.description || '',
-      dueDate: row.due_date ? row.due_date.toISOString().split('T')[0] : null,
+      dueDate: row.due_date ? new Date(row.due_date).toISOString().split('T')[0] : null,
       priority: row.priority as Priority,
       completed: row.completed,
       totalPomodoros: row.total_pomodoros,
@@ -107,7 +108,7 @@ export async function updateTask(id: string, taskData: {
       id: row.id,
       title: row.title,
       description: row.description || '',
-      dueDate: row.due_date ? row.due_date.toISOString().split('T')[0] : null,
+      dueDate: row.due_date ? new Date(row.due_date).toISOString().split('T')[0] : null,
       priority: row.priority as Priority,
       completed: row.completed,
       totalPomodoros: row.total_pomodoros,
@@ -140,7 +141,7 @@ export async function toggleTaskCompletion(id: string): Promise<Task> {
       id: row.id,
       title: row.title,
       description: row.description || '',
-      dueDate: row.due_date ? row.due_date.toISOString().split('T')[0] : null,
+      dueDate: row.due_date ? new Date(row.due_date).toISOString().split('T')[0] : null,
       priority: row.priority as Priority,
       completed: row.completed,
       totalPomodoros: row.total_pomodoros,
@@ -153,11 +154,13 @@ export async function toggleTaskCompletion(id: string): Promise<Task> {
   }
 }
 
+
 export async function deleteTask(id: string): Promise<void> {
   try {
     const result = await sql`
       DELETE FROM tasks 
       WHERE id = ${id}
+      RETURNING id
     `
     
     if (result.length === 0) {
@@ -189,7 +192,7 @@ export async function incrementTaskPomodoros(id: string): Promise<Task> {
       id: row.id,
       title: row.title,
       description: row.description || '',
-      dueDate: row.due_date ? row.due_date.toISOString().split('T')[0] : null,
+      dueDate: row.due_date ? new Date(row.due_date).toISOString().split('T')[0] : null,
       priority: row.priority as Priority,
       completed: row.completed,
       totalPomodoros: row.total_pomodoros,
@@ -220,21 +223,26 @@ export async function getPomodoroRecords(): Promise<PomodoroRecord[]> {
       ORDER BY end_time DESC
     `
     
-    return result.map(row => ({
-      id: row.id,
-      taskId: row.task_id,
-      taskTitle: row.task_title,
-      startTime: new Date(row.start_time),
-      endTime: new Date(row.end_time),
-      mode: row.mode as TimerMode,
-      completed: row.completed
-    }))
+    return result.map(row => {
+      // ✅ FORZAR interpretación UTC de las fechas de Neon
+      const endTime = new Date(row.end_time + 'Z') // Agregar 'Z' para indicar UTC
+      const startTime = new Date(row.start_time + 'Z') // Agregar 'Z' para indicar UTC
+      
+      return {
+        id: row.id,
+        taskId: row.task_id,
+        taskTitle: row.task_title,
+        startTime: startTime,
+        endTime: endTime,
+        mode: row.mode as TimerMode,
+        completed: row.completed
+      }
+    })
   } catch (error) {
     console.error('Error fetching pomodoro records:', error)
     throw new Error('Failed to fetch pomodoro records')
   }
 }
-
 export async function createPomodoroRecord(recordData: {
   taskId: string | null
   taskTitle: string

@@ -28,6 +28,7 @@
     "@radix-ui/react-tabs": "^1.1.13",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
+    "date-fns-tz": "^3.2.0",
     "dotenv": "^17.2.1",
     "electron-squirrel-startup": "^1.0.1",
     "framer-motion": "^12.23.12",

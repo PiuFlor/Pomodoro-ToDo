@@ -8,7 +8,7 @@ export interface Task {
   dueDate: string | null
   priority: Priority
   completed: boolean
-  totalPomodoros: number  // Cambio: de pomodorosCompleted a totalPomodoros
+  totalPomodoros: number  
   createdAt: Date
   updatedAt: Date
 }

@@ -84,7 +84,7 @@ export default function PomodoroTodoApp() {
     }
   })
 
-  const statsCalculator = useStatsCalculator(pomodoroHistory)
+  const statsCalculator = useStatsCalculator(pomodoroHistory, tasks)
 
   const selectActiveTask = (id: string) => {
     setActiveTaskId(activeTaskId === id ? null : id)
@@ -219,7 +219,7 @@ export default function PomodoroTodoApp() {
               </TabsContent>
 
               <TabsContent value="stats" className="m-0">
-                <StatsPanel pomodoroHistory={pomodoroHistory} statsCalculator={statsCalculator} />
+                <StatsPanel pomodoroHistory={pomodoroHistory} tasks={tasks} statsCalculator={statsCalculator} />
               </TabsContent>
             </Tabs>
           </div>

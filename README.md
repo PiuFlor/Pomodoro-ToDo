@@ -4,7 +4,21 @@
 
 Este proyecto nace como un **laboratorio práctico personal** para dominar tecnologías modernas del desarrollo web, mientras se construye un producto funcional paso a paso.
 
----
+
+## 🎥 Demo de la Aplicación
+
+### 📹 Video Demo 
+[![Video Demo](https://img.shields.io/badge/🎬_Ver_Video_Demo-FF0000?style=for-the-badge&logo=google-drive&logoColor=white)](https://drive.google.com/file/d/13ePRmp4xJXESJDZTYJjfH0FOmE6t33Zo/view?usp=sharing)
+
+**Características mostradas en el demo:**
+- ⏱️ Temporizador Pomodoro funcional
+- ✅ Gestión de tareas integrada
+- 🎵 Reproductor de música
+- 📊 Panel de estadísticas
+- 🖥️ Interfaz de escritorio nativa
+
+🔗 **Enlace directo:** https://drive.google.com/file/d/13ePRmp4xJXESJDZTYJjfH0FOmE6t33Zo/view?usp=sharing
+
 
 ### 🎯 Objetivo
 

@@ -8,14 +8,43 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "dev:electron": "npm run dev & npx electron main.js",
     "build": "next build",
     "start": "next start",
-    "electron": "electron main.js",
-    "package": "electron-forge package",
-    "make": "npm run build && electron-forge make",
     "lint": "next lint",
-    "db:migrate": "node scripts/migrate.cjs"
+    "db:migrate": "node scripts/migrate.cjs",
+    "electron": "electron .",
+    "package": "electron-forge package",
+    "make": "electron-forge make",
+    "dist": "npm run build && electron-forge make"
+  },
+  "config": {
+    "forge": {
+      "packagerConfig": {
+        "asar": true,
+        "name": "My Pomodoro App",
+        "executableName": "my-pomodoro-app"
+      },
+      "makers": [
+        {
+          "name": "@electron-forge/maker-squirrel",
+          "config": {
+            "name": "my_pomodoro_app",
+            "authors": "Florencia",
+            "description": "Una app de productividad con Pomodoro y gestión de tareas"
+          }
+        },
+        {
+          "name": "@electron-forge/maker-zip",
+          "platforms": ["win32"]
+        }
+      ],
+      "plugins": [
+        {
+          "name": "@electron-forge/plugin-auto-unpack-natives",
+          "config": {}
+        }
+      ]
+    }
   },
   "dependencies": {
     "@neondatabase/serverless": "^1.0.1",
@@ -39,19 +68,20 @@
     "tailwind-merge": "^3.3.1"
   },
   "devDependencies": {
-    "@electron-forge/cli": "^7.8.3",
-    "@electron-forge/maker-deb": "^7.8.3",
-    "@electron-forge/maker-rpm": "^7.8.3",
-    "@electron-forge/maker-squirrel": "^7.8.3",
-    "@electron-forge/maker-zip": "^7.8.3",
-    "@electron-forge/plugin-auto-unpack-natives": "^7.8.3",
-    "@electron-forge/plugin-fuses": "^7.8.3",
+    "@electron-forge/cli": "^7.10.2",
+    "@electron-forge/maker-deb": "^7.10.2",
+    "@electron-forge/maker-rpm": "^7.10.2",
+    "@electron-forge/maker-squirrel": "^7.10.2",
+    "@electron-forge/maker-zip": "^7.10.2",
+    "@electron-forge/plugin-auto-unpack-natives": "^7.10.2",
+    "@electron-forge/plugin-fuses": "^7.10.2",
     "@electron/fuses": "^1.8.0",
     "@eslint/eslintrc": "^3",
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "cross-env": "^10.1.0",
     "electron": "^37.3.1",
     "eslint": "^9",
     "eslint-config-next": "15.5.0",

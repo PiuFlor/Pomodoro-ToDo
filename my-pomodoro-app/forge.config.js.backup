@@ -1,44 +1,36 @@
-// forge.config.js
 const { FusesPlugin } = require('@electron-forge/plugin-fuses');
 const { FuseV1Options, FuseVersion } = require('@electron/fuses');
 
 module.exports = {
   packagerConfig: {
     asar: true,
-    name: 'My Pomodoro App',
-    executableName: 'my-pomodoro-app',
-    icon: './public/icon', // opcional - quita si no tienes icono
-    extraResource: [
-      '.next',
-      'public',
-      'src',
-      'lib',
-      'node_modules',
-      'package.json'
-    ],
   },
   rebuildConfig: {},
   makers: [
     {
       name: '@electron-forge/maker-squirrel',
-      config: {
-        name: 'my_pomodoro_app',
-        authors: 'Florencia',
-        description: 'Una app de productividad con Pomodoro y gestión de tareas',
-        setupIcon: './public/icon.ico' // opcional
-      }
+      config: {},
     },
     {
       name: '@electron-forge/maker-zip',
-      platforms: ['win32']
-    }
+      platforms: ['darwin'],
+    },
+    {
+      name: '@electron-forge/maker-deb',
+      config: {},
+    },
+    {
+      name: '@electron-forge/maker-rpm',
+      config: {},
+    },
   ],
   plugins: [
     {
       name: '@electron-forge/plugin-auto-unpack-natives',
       config: {},
     },
-    // Fuses son para seguridad
+    // Fuses are used to enable/disable various Electron functionality
+    // at package time, before code signing the application
     new FusesPlugin({
       version: FuseVersion.V1,
       [FuseV1Options.RunAsNode]: false,
